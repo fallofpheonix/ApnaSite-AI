@@ -1,0 +1,69 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
+import { validStorefront } from "@/lib/types";
+
+type Params = { params: Promise<{ id: string }> };
+
+/** Loads the site only if it belongs to the logged-in user. Returning the
+ * same 404 for "doesn't exist" and "not yours" avoids leaking which site IDs
+ * exist. */
+async function ownedSite(req: NextRequest, id: string) {
+  const user = await getSessionUser(req);
+  if (!user) return { error: NextResponse.json({ error: "Please log in." }, { status: 401 }) };
+  const site = await prisma.site.findUnique({ where: { id } });
+  if (!site || site.userId !== user.id) {
+    return { error: NextResponse.json({ error: "Site not found." }, { status: 404 }) };
+  }
+  return { site };
+}
+
+// GET /api/sites/:id — full site data, for re-opening in the editor.
+export async function GET(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const result = await ownedSite(req, id);
+  if ("error" in result) return result.error;
+  const { site } = result;
+  return NextResponse.json({
+    site: {
+      id: site.id,
+      name: site.name,
+      slug: site.slug,
+      published: site.published,
+      data: JSON.parse(site.data),
+    },
+  });
+}
+
+// PUT /api/sites/:id — save edits.
+export async function PUT(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const result = await ownedSite(req, id);
+  if ("error" in result) return result.error;
+
+  let data: unknown;
+  try {
+    data = (await req.json())?.data;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+  if (!validStorefront(data)) {
+    return NextResponse.json({ error: "Missing or invalid storefront data." }, { status: 400 });
+  }
+
+  await prisma.site.update({
+    where: { id },
+    data: { name: data.shopName.trim(), data: JSON.stringify(data) },
+  });
+  return NextResponse.json({ ok: true });
+}
+
+// DELETE /api/sites/:id — removes the site (and its public URL, if live).
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const result = await ownedSite(req, id);
+  if ("error" in result) return result.error;
+
+  await prisma.site.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}

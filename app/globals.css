@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A quiet jali (lattice) screen - two crossing diagonal hairline sets in a
+   teal tint on the paper ground. Reads as texture from a normal viewing
+   distance, not a busy pattern. */
+.bg-jali {
+  background-color: #fbf1de;
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(30, 92, 88, 0.07) 0,
+      rgba(30, 92, 88, 0.07) 1px,
+      transparent 1px,
+      transparent 28px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(30, 92, 88, 0.07) 0,
+      rgba(30, 92, 88, 0.07) 1px,
+      transparent 1px,
+      transparent 28px
+    );
+}
+
+.stage-enter {
+  animation: stage-fade-up 0.45s ease-out both;
+}
+
+@keyframes stage-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-enter {
+    animation: none;
+  }
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+[contenteditable="true"] {
+  outline: none;
+  cursor: text;
+  border-radius: 0.3rem;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+[contenteditable="true"]:hover {
+  background-color: rgba(30, 92, 88, 0.07);
+}
+
+[contenteditable="true"]:focus {
+  background-color: rgba(30, 92, 88, 0.09);
+  box-shadow: 0 0 0 2px rgba(30, 92, 88, 0.3);
+}
