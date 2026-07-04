@@ -11,3 +11,7 @@ prisma/dev.db*
 uploads/*
 !uploads/.gitkeep
 tsconfig.tsbuildinfo
+
+# vitest artifacts
+prisma/test.db*
+tests/.uploads/

@@ -60,6 +60,13 @@ model Session {
   @@index([userId])
 }
 
+// Processed Razorpay webhook event ids. Razorpay retries deliveries, so the
+// handler records each x-razorpay-event-id and applies an event only once.
+model WebhookEvent {
+  id        String   @id // Razorpay's event id (evt_...)
+  createdAt DateTime @default(now())
+}
+
 model Site {
   id        String   @id @default(cuid())
   userId    String

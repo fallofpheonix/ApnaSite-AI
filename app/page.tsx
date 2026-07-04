@@ -187,7 +187,7 @@ export default function Home() {
             </p>
             {user === null && (
               <p className="mx-auto mt-3 max-w-md text-sm text-ink-soft">
-                You'll be asked to log in (just an email code) before generating.
+                You&apos;ll be asked to log in (just an email code) before generating.
               </p>
             )}
           </div>
@@ -279,7 +279,7 @@ export default function Home() {
           {sampleMode && stage === "preview" && (
             <div className="rounded-xl border border-marigold/40 bg-marigold-soft/50 px-5 py-3 text-sm text-ink">
               <strong>Sample content.</strong> No Anthropic API key is configured, so this is
-              hand-written placeholder content — your description wasn't actually processed. The
+              hand-written placeholder content — your description wasn&apos;t actually processed. The
               full flow (edit, save, publish) still works; add the key to .env.local for real
               generation.
             </div>

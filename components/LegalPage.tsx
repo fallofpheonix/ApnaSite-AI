@@ -1,3 +1,4 @@
+import Link from "next/link";
 // Shared shell for /terms and /privacy: readable measure, mobile padding,
 // and an unmissable draft banner until the owner has reviewed the text.
 export default function LegalPage({
@@ -10,9 +11,9 @@ export default function LegalPage({
   return (
     <main className="min-h-screen bg-paper">
       <div className="mx-auto max-w-2xl px-5 py-10">
-        <a href="/" className="font-display text-xl italic text-ink">
+        <Link href="/" className="font-display text-xl italic text-ink">
           ApnaSite AI
-        </a>
+        </Link>
 
         <div className="mt-6 rounded-xl border border-marigold/40 bg-marigold-soft/50 px-4 py-3 text-sm text-ink">
           <strong>Draft.</strong> This page is a plain-language draft awaiting review — it is not
@@ -33,9 +34,9 @@ export default function LegalPage({
             Privacy
           </a>
           {" · "}
-          <a href="/" className="underline hover:text-ink">
+          <Link href="/" className="underline hover:text-ink">
             Home
-          </a>
+          </Link>
         </p>
       </div>
     </main>

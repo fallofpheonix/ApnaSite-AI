@@ -34,6 +34,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
   }
 
+  // Replay protection: Razorpay retries deliveries and sends a stable event
+  // id. Record it first — a second delivery of the same id is acknowledged
+  // without being applied. (Signature is already verified, so the id is
+  // trustworthy.)
+  const eventId = req.headers.get("x-razorpay-event-id");
+  if (eventId) {
+    try {
+      await prisma.webhookEvent.create({ data: { id: eventId } });
+    } catch {
+      // Unique violation → already processed this delivery.
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+  }
+
   let event: string;
   let entity: { id?: string; status?: string; current_end?: number | null };
   try {

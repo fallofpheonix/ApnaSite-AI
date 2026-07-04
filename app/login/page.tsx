@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type Step = "email" | "code";
@@ -61,9 +62,9 @@ export default function LoginPage() {
     <main className="bg-jali flex min-h-screen flex-col items-center justify-center bg-paper px-6 py-16">
       <div className="stage-enter w-full max-w-md">
         <div className="mb-8 text-center">
-          <a href="/" className="font-display text-4xl italic text-ink">
+          <Link href="/" className="font-display text-4xl italic text-ink">
             ApnaSite AI
-          </a>
+          </Link>
           <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-ink-soft">
             {step === "email"
               ? "Enter your email and we'll send you a login code. No password needed."

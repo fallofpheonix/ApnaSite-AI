@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AppFooter from "@/components/AppFooter";
 import AppHeader from "@/components/AppHeader";
@@ -77,12 +78,12 @@ export default function DashboardPage() {
               : `${sites.length} site${sites.length === 1 ? "" : "s"} · ${sites.filter((s) => s.published).length} live`
           }
           action={
-            <a
+            <Link
               href="/"
               className="flex min-h-[44px] items-center rounded-xl bg-marigold px-5 text-sm font-semibold text-ink shadow-sm transition-colors hover:bg-marigold-deep hover:text-paper"
             >
               + New Site
-            </a>
+            </Link>
           }
         />
 
