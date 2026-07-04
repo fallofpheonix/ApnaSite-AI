@@ -1,8 +1,9 @@
 "use client";
 
+import { useRef, useState } from "react";
 import type { StorefrontData, Product } from "@/lib/types";
 import { scriptLangFor } from "@/lib/types";
-import { resolveTheme } from "@/lib/theme";
+import { themeForSite } from "@/lib/theme";
 import { resolveFontStack } from "@/lib/fonts";
 import EditableText from "./EditableText";
 
@@ -12,7 +13,7 @@ interface StorefrontPreviewProps {
 }
 
 export default function StorefrontPreview({ data, onChange }: StorefrontPreviewProps) {
-  const theme = resolveTheme(data.category);
+  const theme = themeForSite(data);
   const displayFont = resolveFontStack(theme.fontDisplayName, "display");
   const bodyFont = resolveFontStack(theme.fontBodyName, "body");
 
@@ -44,7 +45,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
     >
       {/* Hero */}
       <header
-        className="px-8 py-16 text-center sm:px-16"
+        className="px-5 py-12 text-center sm:px-16 sm:py-16"
         style={{ backgroundColor: theme.bgAlt, borderBottom: `1px solid ${theme.border}` }}
       >
         <EditableText
@@ -92,7 +93,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
       </header>
 
       {/* About */}
-      <section className="px-8 py-10 sm:px-16">
+      <section className="px-5 py-10 sm:px-16">
         <h2 className="mb-3 text-2xl font-semibold" style={{ fontFamily: displayFont }}>
           About Us
         </h2>
@@ -107,7 +108,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
 
       {/* Hours */}
       <section
-        className="px-8 py-10 sm:px-16"
+        className="px-5 py-10 sm:px-16"
         style={{ backgroundColor: theme.cardBg, borderTop: `1px solid ${theme.border}`, borderBottom: `1px solid ${theme.border}` }}
       >
         <h2 className="mb-3 text-2xl font-semibold" style={{ fontFamily: displayFont }}>
@@ -123,7 +124,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
       </section>
 
       {/* Products */}
-      <section className="px-8 py-10 sm:px-16">
+      <section className="px-5 py-10 sm:px-16">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-semibold" style={{ fontFamily: displayFont }}>
             What We Offer
@@ -131,7 +132,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
           <button
             type="button"
             onClick={addProduct}
-            className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors hover:opacity-80"
+            className="min-h-[44px] rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
             style={{ borderColor: theme.border }}
           >
             + Add item
@@ -148,10 +149,15 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
                 type="button"
                 onClick={() => removeProduct(i)}
                 aria-label="Remove item"
-                className="absolute right-3 top-3 text-sm opacity-50 hover:opacity-100"
+                className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full text-sm opacity-50 hover:opacity-100"
               >
                 &#10005;
               </button>
+              <ProductPhoto
+                image={product.image ?? null}
+                borderColor={theme.border}
+                onChange={(url) => updateProduct(i, { image: url })}
+              />
               <EditableText
                 value={product.name}
                 onChange={(v) => updateProduct(i, { name: v })}
@@ -183,7 +189,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
 
       {/* Contact */}
       <section
-        className="px-8 py-10 sm:px-16"
+        className="px-5 py-10 sm:px-16"
         style={{ backgroundColor: theme.cardBg, borderTop: `1px solid ${theme.border}` }}
       >
         <h2 className="mb-4 text-2xl font-semibold" style={{ fontFamily: displayFont }}>
@@ -208,6 +214,97 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
       <footer className="px-8 py-6 text-center text-xs" style={{ color: theme.textMuted }}>
         Built with VoxSite AI
       </footer>
+    </div>
+  );
+}
+
+/** Photo slot on a product card in the editor. Uploads to /api/upload and
+ * stores the returned URL on the product. A card with no photo shows only a
+ * quiet "Add photo" button — the published site renders such cards as clean
+ * text-only cards. */
+function ProductPhoto({
+  image,
+  borderColor,
+  onChange,
+}: {
+  image: string | null;
+  borderColor: string;
+  onChange: (url: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Upload failed.");
+      onChange(json.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleFile(file);
+          e.target.value = ""; // allow re-selecting the same file
+        }}
+      />
+      {image ? (
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt=""
+            className="h-40 w-full rounded-xl border object-cover"
+            style={{ borderColor }}
+          />
+          <div className="absolute right-2 top-2 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="min-h-[40px] rounded-lg bg-black/55 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+            >
+              {uploading ? "Uploading..." : "Change"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              aria-label="Remove photo"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-black/55 text-xs font-semibold text-white backdrop-blur-sm"
+            >
+              &#10005;
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-2 text-sm font-medium opacity-60 transition-opacity hover:opacity-100 disabled:opacity-40"
+          style={{ borderColor }}
+        >
+          <span aria-hidden>&#128247;</span> {uploading ? "Uploading..." : "Add photo"}
+        </button>
+      )}
+      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

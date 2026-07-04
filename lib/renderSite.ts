@@ -1,6 +1,6 @@
 import type { StorefrontData } from "./types";
 import { scriptLangFor } from "./types";
-import { resolveTheme } from "./theme";
+import { themeForSite } from "./theme";
 import { GOOGLE_FONTS_HREF, staticFontStack } from "./fonts";
 
 function esc(str: string | null | undefined): string {
@@ -12,13 +12,41 @@ function esc(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+// wa.me links require a country code. Most owners will type a bare 10-digit
+// Indian mobile number, so those get the +91 prefix; anything longer is
+// assumed to already carry its country code.
+const WA_DEFAULT_COUNTRY_CODE = "91";
+
 function waLink(whatsapp: string): string {
-  const digits = whatsapp.replace(/[^0-9]/g, "");
+  let digits = whatsapp.replace(/[^0-9]/g, "");
+  if (digits.length === 10) digits = WA_DEFAULT_COUNTRY_CODE + digits;
   return `https://wa.me/${digits}`;
 }
 
-export function renderStorefrontHTML(data: StorefrontData): string {
-  const theme = resolveTheme(data.category);
+/** tel: URIs must not contain spaces or dashes — keep digits and a leading +. */
+function telLink(phone: string): string {
+  const plus = phone.trim().startsWith("+") ? "+" : "";
+  return `tel:${plus}${phone.replace(/[^0-9]/g, "")}`;
+}
+
+/** Meta description: the tagline if present, else the about text, clamped so
+ * search results and WhatsApp link previews don't show a truncated wall. */
+function metaDescription(data: StorefrontData): string {
+  const raw = (data.tagline || data.aboutText || "").trim().replace(/\s+/g, " ");
+  return raw.length > 160 ? raw.slice(0, 157).trimEnd() + "..." : raw;
+}
+
+export interface RenderOptions {
+  /** Absolute URL of this page (for og:url and absolutizing og:image).
+   * Without it the og tags that need absolute URLs are omitted. */
+  pageUrl?: string;
+  /** Free-plan sites carry a small "Made with VoxSite" footer badge linking
+   * back to the app (see lib/plans.ts). Pro sites render no branding. */
+  showBadge?: boolean;
+}
+
+export function renderStorefrontHTML(data: StorefrontData, options: RenderOptions = {}): string {
+  const theme = themeForSite(data);
   const fontDisplay = staticFontStack(theme.fontDisplayName, "display");
   const fontBody = staticFontStack(theme.fontBodyName, "body");
   const htmlLang = scriptLangFor(data.language);
@@ -27,6 +55,7 @@ export function renderStorefrontHTML(data: StorefrontData): string {
     .map(
       (p) => `
         <div class="product-card">
+          ${p.image ? `<img class="product-photo" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy" />` : ""}
           <h3>${esc(p.name)}</h3>
           <p>${esc(p.description)}</p>
           ${p.price ? `<span class="price">${esc(p.price)}</span>` : ""}
@@ -34,11 +63,29 @@ export function renderStorefrontHTML(data: StorefrontData): string {
     )
     .join("\n");
 
+  // Social-preview tags so a link shared on WhatsApp shows the shop name,
+  // description and (when available) the first product photo.
+  const description = metaDescription(data);
+  const origin = options.pageUrl ? new URL(options.pageUrl).origin : null;
+  const firstPhoto = data.products.find((p) => p.image)?.image;
+  const ogImage = firstPhoto && origin ? new URL(firstPhoto, origin).href : null;
+  const ogTags = [
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:title" content="${esc(data.shopName)}" />`,
+    `<meta property="og:description" content="${esc(description)}" />`,
+    `<meta property="og:site_name" content="${esc(data.shopName)}" />`,
+    options.pageUrl ? `<meta property="og:url" content="${esc(options.pageUrl)}" />` : "",
+    ogImage ? `<meta property="og:image" content="${esc(ogImage)}" />` : "",
+    `<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}" />`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   const contactButtons = [
     data.whatsapp
       ? `<a class="btn btn-primary" href="${waLink(data.whatsapp)}" target="_blank" rel="noopener">Message on WhatsApp</a>`
       : "",
-    data.phone ? `<a class="btn btn-outline" href="tel:${esc(data.phone)}">Call ${esc(data.phone)}</a>` : "",
+    data.phone ? `<a class="btn btn-outline" href="${telLink(data.phone)}">Call ${esc(data.phone)}</a>` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -48,8 +95,9 @@ export function renderStorefrontHTML(data: StorefrontData): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${esc(data.shopName)}</title>
-<meta name="description" content="${esc(data.tagline)}" />
+<title>${esc(data.shopName)}${data.tagline ? ` — ${esc(data.tagline)}` : ""}</title>
+<meta name="description" content="${esc(description)}" />
+${ogTags}
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="${GOOGLE_FONTS_HREF}" />
@@ -132,11 +180,29 @@ export function renderStorefrontHTML(data: StorefrontData): string {
     border-radius: 0.75rem;
     padding: 1.25rem;
   }
+  .product-photo {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    margin-bottom: 0.85rem;
+    display: block;
+  }
   .product-card h3 { font-size: 1.1rem; }
   .product-card p { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 0.5rem; }
   .price { font-weight: 700; color: var(--accent); }
   .contact-grid { display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-start; margin-top: 1.5rem; }
-  .contact-info p { margin: 0.25rem 0; color: var(--text-muted); }
+  /* Comfortable one-tap rows on phones: the link itself carries the padding
+     so the whole visual row is the tap target. */
+  .contact-info p { margin: 0; color: var(--text-muted); }
+  .contact-info a {
+    display: inline-block;
+    padding: 0.65rem 0;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .contact-info p:not(:has(a)) { padding: 0.65rem 0; }
   .map-placeholder {
     flex: 1;
     min-width: 260px;
@@ -156,6 +222,16 @@ export function renderStorefrontHTML(data: StorefrontData): string {
     color: var(--text-muted);
     font-size: 0.85rem;
   }
+  .voxsite-badge {
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.8rem;
+  }
+  .voxsite-badge:hover { color: var(--text); }
   @media (max-width: 600px) {
     .hero h1 { font-size: 2rem; }
   }
@@ -204,16 +280,20 @@ export function renderStorefrontHTML(data: StorefrontData): string {
       <div class="contact-grid">
         <div class="contact-info">
           ${data.address ? `<p>&#128205; ${esc(data.address)}</p>` : ""}
-          ${data.phone ? `<p>&#128222; ${esc(data.phone)}</p>` : ""}
-          ${data.whatsapp ? `<p>&#128172; WhatsApp: ${esc(data.whatsapp)}</p>` : ""}
-          ${data.email ? `<p>&#9993; ${esc(data.email)}</p>` : ""}
+          ${data.phone ? `<p>&#128222; <a href="${telLink(data.phone)}">${esc(data.phone)}</a></p>` : ""}
+          ${data.whatsapp ? `<p>&#128172; <a href="${waLink(data.whatsapp)}" target="_blank" rel="noopener">WhatsApp: ${esc(data.whatsapp)}</a></p>` : ""}
+          ${data.email ? `<p>&#9993; <a href="mailto:${esc(data.email)}">${esc(data.email)}</a></p>` : ""}
         </div>
         <div class="map-placeholder">${data.address ? "Map: " + esc(data.address) : "Map"}</div>
       </div>
     </div>
   </section>
 
-  <footer>Built with VoxSite AI</footer>
+  ${
+    options.showBadge !== false
+      ? `<footer><a class="voxsite-badge" href="${origin ?? ""}/" rel="noopener">&#10024; Made with VoxSite</a></footer>`
+      : ""
+  }
 </body>
 </html>
 `;

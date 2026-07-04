@@ -104,12 +104,15 @@ Useful commands: `npm run db:push` (apply schema changes to the database),
 | `types.ts` | The central definition of `StorefrontData` — the shape of a website's content (shopName, tagline, category, products, hours, contact info, language). Almost every other file imports this. Also `validStorefront()`, a safety check run on any site data sent by a browser before it's trusted. |
 | `anthropic.ts` | The only file that talks to Claude. Builds the system prompt (including per-language writing instructions for English / Hindi / Hinglish), sends the owner's description, and demands the reply match `STOREFRONT_SCHEMA` so it always comes back as clean, parseable data. |
 | `sampleData.ts` | Hand-written stand-in content used when no API key is configured, one sample per language. It still runs the description through the category matcher so every theme can be previewed without a key. Responses are flagged `sampleMode: true` so the UI can say so. |
-| `theme.ts` | The design engine. 15 themes, each a deliberate palette + typeface pairing for a shop category (bakery, salon, hardware, restaurant, grocery, pharmacy, clothing, **sweets/mithai, kirana, tailor, jewellery, gym, tuition, electronics**, and a general fallback). `resolveTheme(category)` matches the AI-returned category against keyword patterns; order matters — specific categories (kirana) sit above broad ones (grocery). |
+| `theme.ts` | The design engine. 15 themes, each a deliberate palette + typeface pairing for a shop category (bakery, salon, hardware, restaurant, grocery, pharmacy, clothing, **sweets/mithai, kirana, tailor, jewellery, gym, tuition, electronics**, and a general fallback). `resolveTheme(category)` matches the AI-returned category against keyword patterns; order matters — specific categories (kirana) sit above broad ones (grocery). `themeForSite(data)` is the entry point everything uses: an explicit owner pick (`data.themeOverride`, set by the theme switcher) beats the keyword match. |
 | `fonts.ts` | Loads every typeface once via Next.js's font system for the live preview, and builds the Google Fonts link used by exported/public pages. Every font stack ends with a Devanagari fallback font so Hindi text never renders as empty boxes. |
 | `renderSite.ts` | Turns a `StorefrontData` object into one complete, standalone HTML page — the actual site customers see. It escapes all text (so nobody can inject code through a shop description) and inlines the theme colors as CSS. |
 | `slug.ts` | Makes URL-safe names ("Iron House Gym" → `iron-house-gym`). Devanagari-only names get a random `my-site-xxxxxx` fallback. `uniqueSlugFor()` checks the database and appends `-2`, `-3`… on collisions; a site that already owns a slug keeps it forever, so republishing never changes a live URL. |
 | `db.ts` | Creates the single shared Prisma database client. The odd-looking global caching exists because Next.js dev mode reloads code constantly and would otherwise open a new database connection each time. |
 | `auth.ts` | All login logic: create + hash OTP codes, verify them, create session rows, read the session cookie back into a user (`getSessionUser`), and set/clear the cookie. The cookie is `httpOnly` (JavaScript in the page can't read it — protects against script-injection stealing logins). In dev, the OTP is printed to the server console instead of being emailed. |
+| `plans.ts` | **The one file for pricing.** Free (1 published site, badge) and Pro (₹199/mo, 5 sites, no badge) plan definitions, plus `planForUser()` which maps a user's Subscription row to their effective plan. |
+| `razorpay.ts` | Razorpay REST calls (plan + subscription creation via fetch, no SDK) and both signature verifiers: checkout callback HMAC and webhook HMAC over the raw body. Without test keys in env, `razorpayConfigured()` is false and checkout is disabled — never faked. |
+| `uploads.ts` | Where uploaded photos live on disk (`UPLOADS_DIR`) and the name allowlist used by the serving route. |
 | `rateLimit.ts` | A small in-memory counter: "no more than N hits per time window per key". Used on generation (costs money) and OTP requests (could spam inboxes). **Limitation:** counters live in the server process's memory, so they reset on restart and aren't shared if you ever run multiple server instances — swap for a database/Redis counter then. |
 
 ### `app/` — pages and API endpoints
@@ -126,6 +129,8 @@ is the page at `/login`; `app/api/sites/route.ts` is the API endpoint at
 | `/` | `app/page.tsx` | The builder. Mic + textarea capture → loading → editable preview → published confirmation. Also handles `/?site=<id>` to re-open a saved site for editing. |
 | `/login` | `app/login/page.tsx` | Two-step login: enter email → enter the 6-digit code. Supports `?next=/somewhere` to return you where you were heading. |
 | `/dashboard` | `app/dashboard/page.tsx` | "My Sites": every saved site with its status (Draft/Live), public link, and Edit / Publish / Unpublish / Delete buttons. |
+| `/billing` | `app/billing/page.tsx` | Plans & Billing: current plan, perks, Razorpay Checkout upgrade button (disabled with a notice when test keys are absent), and subscription status. |
+| `/terms`, `/privacy` | `app/terms/page.tsx`, `app/privacy/page.tsx` | Plain-language legal drafts (marked as drafts), linked from login and /billing. |
 | `/s/<slug>` | `app/s/[slug]/route.ts` | **The public site.** The only unauthenticated route besides login itself. Renders the site's HTML straight from the database. |
 | (all pages) | `app/layout.tsx`, `app/globals.css` | The shared HTML shell, font variables, and global styles. |
 
@@ -142,6 +147,12 @@ is the page at `/login`; `app/api/sites/route.ts` is the API endpoint at
 | `GET/PUT/DELETE /api/sites/:id` | `app/api/sites/[id]/route.ts` | login required, **owner only** | Open, update, or delete one site. Non-owners get the same 404 as nonexistent sites, so site IDs can't be probed. |
 | `POST /api/sites/:id/publish` | `.../publish/route.ts` | owner only | Claims a unique slug (first time) and sets `published=true`. |
 | `POST /api/sites/:id/unpublish` | `.../unpublish/route.ts` | owner only | Sets `published=false`; the slug stays reserved. |
+| `POST /api/upload` | `app/api/upload/route.ts` | login required, rate-limited | Product photo upload: validates type (JPG/PNG/WebP by magic bytes) + size (≤4 MB), writes to `UPLOADS_DIR` (default `./uploads`), returns the `/uploads/<name>` URL. The single file to change for S3/R2/Vercel Blob. |
+| `GET /uploads/:name` | `app/uploads/[name]/route.ts` | public | Serves uploaded photos from disk. Exists because `next start` won't serve files added to `public/` after build. Strict name allowlist (no path traversal). |
+| `GET /api/billing` | `app/api/billing/route.ts` | login required | Current plan, published-site count, subscription status, and whether checkout is configured. |
+| `POST /api/billing/subscribe` | `.../subscribe/route.ts` | login required, rate-limited | Creates a Razorpay subscription (test mode) and returns its id for Checkout. 503 when keys are absent. |
+| `POST /api/billing/verify` | `.../verify/route.ts` | login required | Verifies the checkout success signature (HMAC of `payment_id|subscription_id`) and activates the user's subscription. |
+| `POST /api/billing/webhook` | `.../webhook/route.ts` | **signature only** (no session — Razorpay calls it) | HMAC-verified over the raw body. Maps `subscription.*` events onto the Subscription row: activated/charged → active, halted, cancelled, expired. The authoritative record of paid status. |
 
 ### `components/` — reusable frontend pieces
 

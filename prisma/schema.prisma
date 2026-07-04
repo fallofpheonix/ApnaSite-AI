@@ -11,11 +11,30 @@ generator client {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  createdAt DateTime  @default(now())
-  sessions  Session[]
-  sites     Site[]
+  id           String        @id @default(cuid())
+  email        String        @unique
+  createdAt    DateTime      @default(now())
+  sessions     Session[]
+  sites        Site[]
+  subscription Subscription?
+}
+
+// One row per user who has ever started a paid subscription. Absence of a
+// row (or a non-active status) means the free plan — plan rules themselves
+// live in lib/plans.ts, not in the database.
+model Subscription {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planKey                String // "pro" — must match a key in lib/plans.ts
+  razorpaySubscriptionId String   @unique
+  // Mirrors Razorpay's subscription lifecycle: created → authenticated/active
+  // → (halted | cancelled | completed | expired). Only "active" and
+  // "authenticated" grant paid features.
+  status                 String
+  currentPeriodEnd       DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 // One row per outstanding login code. Codes are stored hashed so a peek at

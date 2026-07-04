@@ -55,20 +55,23 @@ const THEMES: Record<string, Theme> = {
     border: "#EBCEDD",
   },
   hardware: {
+    // Brief (docs/DESIGN-REFERENCES.md): steel shutters, kraft cartons,
+    // cement dust, safety-orange stencils — the shop floor, not an office
+    // lobby. Warm cement/kraft ground, iron text, safety orange kept.
     id: "hardware",
     label: "Site Ready",
     fontDisplayName: "Barlow Condensed",
     fontBodyName: "Barlow",
     displayItalicAccent: false,
-    bg: "#EDEFF2",
-    bgAlt: "#DBDFE5",
-    text: "#20242B",
-    textMuted: "#565F6B",
-    accent: "#D9600C",
-    accentDeep: "#B34E08",
+    bg: "#EFEAE0",
+    bgAlt: "#E0D6C4",
+    text: "#26221C",
+    textMuted: "#6B6154",
+    accent: "#C0540A", // AA with white label text (4.65:1)
+    accentDeep: "#9A430A",
     accentText: "#FFFFFF",
-    cardBg: "#FFFFFF",
-    border: "#C7CDD6",
+    cardBg: "#FBF8F1",
+    border: "#D2C7B1",
   },
   restaurant: {
     id: "restaurant",
@@ -103,20 +106,23 @@ const THEMES: Record<string, Theme> = {
     border: "#CBE0C2",
   },
   pharmacy: {
+    // Brief: the green cross IS the category signal in India — glowing green
+    // on clinical white. Accent moved from slate-navy to pharmacy green;
+    // ground stays pale and hygienic.
     id: "pharmacy",
     label: "Clear Care",
     fontDisplayName: "Bricolage Grotesque",
     fontBodyName: "Karla",
     displayItalicAccent: false,
-    bg: "#EEF5F7",
-    bgAlt: "#D9E9EC",
-    text: "#152A38",
-    textMuted: "#4C6E7A",
-    accent: "#1B3A4B",
-    accentDeep: "#0F2733",
-    accentText: "#EEF5F7",
+    bg: "#F0F7F2",
+    bgAlt: "#DCEDE1",
+    text: "#16301F",
+    textMuted: "#4E6E58",
+    accent: "#1E7A4A",
+    accentDeep: "#165C38",
+    accentText: "#FFFFFF",
     cardBg: "#FFFFFF",
-    border: "#C8DEE3",
+    border: "#C6DECD",
   },
   clothing: {
     id: "clothing",
@@ -245,22 +251,23 @@ const THEMES: Record<string, Theme> = {
     border: "#DCD3B9",
   },
   electronics: {
-    // Cool bench-top grey with one confident circuit blue; Sora's geometric
-    // letterforms carry the technical feel without going full sci-fi.
+    // Brief: Indian mobile-market storefronts — glossy showroom white, vivid
+    // electric-blue signage, screen-bright contrast. Ground pushed to
+    // near-white, blue saturated, ink darkened; Sora keeps it technical.
     id: "electronics",
     label: "Signal",
     fontDisplayName: "Sora",
     fontBodyName: "Barlow",
     displayItalicAccent: false,
-    bg: "#EFF2F6",
-    bgAlt: "#DFE5ED",
-    text: "#131C2A",
-    textMuted: "#556274",
-    accent: "#1B5FD0",
-    accentDeep: "#1348A3",
+    bg: "#F7F9FC",
+    bgAlt: "#E6EDF8",
+    text: "#0D1521",
+    textMuted: "#48566A",
+    accent: "#0B5FE8",
+    accentDeep: "#0846B8",
     accentText: "#FFFFFF",
     cardBg: "#FFFFFF",
-    border: "#C9D2DF",
+    border: "#D0DBEC",
   },
   general: {
     id: "general",
@@ -309,6 +316,17 @@ export function resolveTheme(category: string): Theme {
     }
   }
   return THEMES.general;
+}
+
+export function themeById(id: string | null | undefined): Theme | null {
+  return id ? (THEMES[id] ?? null) : null;
+}
+
+/** The single theme-resolution entry point for site data: an explicit owner
+ * choice (themeOverride) always beats the category keyword match. Unknown
+ * override ids (e.g. a theme that was later renamed) fall back to matching. */
+export function themeForSite(data: { category: string; themeOverride?: string | null }): Theme {
+  return themeById(data.themeOverride) ?? resolveTheme(data.category);
 }
 
 export function listThemes(): Theme[] {
