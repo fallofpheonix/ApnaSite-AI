@@ -12,21 +12,36 @@ function esc(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+const UPLOAD_PATH_RE = /^\/uploads\/[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
+
+function safeImageSrc(src: string | null | undefined): string | null {
+  return src && UPLOAD_PATH_RE.test(src) ? src : null;
+}
+
 // wa.me links require a country code. Most owners will type a bare 10-digit
 // Indian mobile number, so those get the +91 prefix; anything longer is
 // assumed to already carry its country code.
 const WA_DEFAULT_COUNTRY_CODE = "91";
 
-function waLink(whatsapp: string): string {
+function waLink(whatsapp: string): string | null {
   let digits = whatsapp.replace(/[^0-9]/g, "");
   if (digits.length === 10) digits = WA_DEFAULT_COUNTRY_CODE + digits;
+  if (digits.length < 8 || digits.length > 15) return null;
   return `https://wa.me/${digits}`;
 }
 
 /** tel: URIs must not contain spaces or dashes — keep digits and a leading +. */
-function telLink(phone: string): string {
+function telLink(phone: string): string | null {
   const plus = phone.trim().startsWith("+") ? "+" : "";
-  return `tel:${plus}${phone.replace(/[^0-9]/g, "")}`;
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.length < 6 || digits.length > 15) return null;
+  return `tel:${plus}${digits}`;
+}
+
+function mailLink(email: string): string | null {
+  const trimmed = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return null;
+  return `mailto:${encodeURIComponent(trimmed)}`;
 }
 
 /** Meta description: the tagline if present, else the about text, clamped so
@@ -52,22 +67,23 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
   const htmlLang = scriptLangFor(data.language);
 
   const productsHTML = data.products
-    .map(
-      (p) => `
+    .map((p) => {
+      const image = safeImageSrc(p.image);
+      return `
         <div class="product-card">
-          ${p.image ? `<img class="product-photo" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy" />` : ""}
+          ${image ? `<img class="product-photo" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy" />` : ""}
           <h3>${esc(p.name)}</h3>
           <p>${esc(p.description)}</p>
           ${p.price ? `<span class="price">${esc(p.price)}</span>` : ""}
-        </div>`
-    )
+        </div>`;
+    })
     .join("\n");
 
   // Social-preview tags so a link shared on WhatsApp shows the shop name,
   // description and (when available) the first product photo.
   const description = metaDescription(data);
   const origin = options.pageUrl ? new URL(options.pageUrl).origin : null;
-  const firstPhoto = data.products.find((p) => p.image)?.image;
+  const firstPhoto = data.products.map((p) => safeImageSrc(p.image)).find(Boolean);
   const ogImage = firstPhoto && origin ? new URL(firstPhoto, origin).href : null;
   const ogTags = [
     `<meta property="og:type" content="website" />`,
@@ -81,11 +97,14 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
     .filter(Boolean)
     .join("\n");
 
+  const whatsappLink = data.whatsapp ? waLink(data.whatsapp) : null;
+  const phoneLink = data.phone ? telLink(data.phone) : null;
+  const emailLink = data.email ? mailLink(data.email) : null;
   const contactButtons = [
-    data.whatsapp
-      ? `<a class="btn btn-primary" href="${waLink(data.whatsapp)}" target="_blank" rel="noopener">Message on WhatsApp</a>`
+    whatsappLink
+      ? `<a class="btn btn-primary" href="${esc(whatsappLink)}" target="_blank" rel="noopener">Message on WhatsApp</a>`
       : "",
-    data.phone ? `<a class="btn btn-outline" href="${telLink(data.phone)}">Call ${esc(data.phone)}</a>` : "",
+    phoneLink ? `<a class="btn btn-outline" href="${esc(phoneLink)}">Call ${esc(data.phone)}</a>` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -280,9 +299,9 @@ ${ogTags}
       <div class="contact-grid">
         <div class="contact-info">
           ${data.address ? `<p>&#128205; ${esc(data.address)}</p>` : ""}
-          ${data.phone ? `<p>&#128222; <a href="${telLink(data.phone)}">${esc(data.phone)}</a></p>` : ""}
-          ${data.whatsapp ? `<p>&#128172; <a href="${waLink(data.whatsapp)}" target="_blank" rel="noopener">WhatsApp: ${esc(data.whatsapp)}</a></p>` : ""}
-          ${data.email ? `<p>&#9993; <a href="mailto:${esc(data.email)}">${esc(data.email)}</a></p>` : ""}
+          ${phoneLink ? `<p>&#128222; <a href="${esc(phoneLink)}">${esc(data.phone)}</a></p>` : ""}
+          ${whatsappLink ? `<p>&#128172; <a href="${esc(whatsappLink)}" target="_blank" rel="noopener">WhatsApp: ${esc(data.whatsapp)}</a></p>` : ""}
+          ${emailLink ? `<p>&#9993; <a href="${esc(emailLink)}">${esc(data.email)}</a></p>` : ""}
         </div>
         <div class="map-placeholder">${data.address ? "Map: " + esc(data.address) : "Map"}</div>
       </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidEmail, requestOtp } from "@/lib/auth";
+import { OtpDeliveryUnavailableError, isValidEmail, requestOtp } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
@@ -27,12 +27,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await requestOtp(email);
+  try {
+    await requestOtp(email);
+  } catch (err) {
+    if (err instanceof OtpDeliveryUnavailableError) {
+      return NextResponse.json(
+        { error: "Login email delivery is not configured on this server." },
+        { status: 503 }
+      );
+    }
+    throw err;
+  }
 
   return NextResponse.json({
     ok: true,
     message:
-      process.env.NODE_ENV === "production"
+      process.env.NODE_ENV === "production" && process.env.ALLOW_CONSOLE_OTP_IN_PRODUCTION !== "true"
         ? "We've sent a 6-digit code to your email."
         : "Dev mode: your 6-digit code was printed in the server console (the terminal running `npm run dev`).",
   });

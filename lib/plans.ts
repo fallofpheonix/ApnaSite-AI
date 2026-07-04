@@ -41,7 +41,7 @@ export const PLANS: Record<Plan["key"], Plan> = {
 
 /** Subscription statuses that grant the paid plan. "authenticated" is
  * Razorpay's state right after checkout, before the first charge settles. */
-const PAID_STATUSES = new Set(["active", "authenticated"]);
+export const PAID_STATUSES = new Set(["active", "authenticated"]);
 
 /** The user's effective plan: an active Razorpay subscription → that plan,
  * anything else (no row, halted, cancelled, expired) → free. */

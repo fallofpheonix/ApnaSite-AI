@@ -41,12 +41,53 @@ export interface StorefrontData {
   language: Language;
 }
 
-/** Minimal shape check before trusting client-sent site data. */
+const MAX_TEXT = 2000;
+const MAX_SHORT_TEXT = 200;
+const MAX_PRODUCTS = 40;
+const UPLOAD_PATH_RE = /^\/uploads\/[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
+const VALID_LANGUAGES = new Set<Language>(["en", "hi", "hinglish"]);
+
+function isString(value: unknown, max = MAX_TEXT): value is string {
+  return typeof value === "string" && value.length <= max;
+}
+
+function isNullableString(value: unknown, max = MAX_TEXT): value is string | null {
+  return value === null || isString(value, max);
+}
+
+function isValidImage(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || (typeof value === "string" && UPLOAD_PATH_RE.test(value));
+}
+
+/** Strict shape check before trusting client-sent site data. */
 export function validStorefront(data: unknown): data is StorefrontData {
   if (!data || typeof data !== "object") return false;
   const d = data as StorefrontData;
   return (
-    typeof d.shopName === "string" && d.shopName.trim().length > 0 && Array.isArray(d.products)
+    isString(d.shopName, MAX_SHORT_TEXT) &&
+    d.shopName.trim().length > 0 &&
+    isString(d.tagline, MAX_SHORT_TEXT) &&
+    isString(d.category, MAX_SHORT_TEXT) &&
+    isString(d.aboutText) &&
+    isString(d.hours, MAX_SHORT_TEXT) &&
+    isNullableString(d.address) &&
+    isNullableString(d.phone, MAX_SHORT_TEXT) &&
+    isNullableString(d.whatsapp, MAX_SHORT_TEXT) &&
+    isNullableString(d.email, MAX_SHORT_TEXT) &&
+    VALID_LANGUAGES.has(d.language) &&
+    (d.themeOverride === undefined || d.themeOverride === null || isString(d.themeOverride, MAX_SHORT_TEXT)) &&
+    Array.isArray(d.products) &&
+    d.products.length <= MAX_PRODUCTS &&
+    d.products.every(
+      (p) =>
+        p &&
+        typeof p === "object" &&
+        isString((p as Product).name, MAX_SHORT_TEXT) &&
+        (p as Product).name.trim().length > 0 &&
+        isString((p as Product).description) &&
+        isNullableString((p as Product).price, MAX_SHORT_TEXT) &&
+        isValidImage((p as Product).image)
+    )
   );
 }
 

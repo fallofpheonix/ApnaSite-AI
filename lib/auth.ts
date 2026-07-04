@@ -7,6 +7,12 @@ const OTP_TTL_MS = 10 * 60 * 1000; // codes are valid for 10 minutes
 const OTP_MAX_ATTEMPTS = 5;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+export class OtpDeliveryUnavailableError extends Error {
+  constructor() {
+    super("OTP delivery is not configured.");
+  }
+}
+
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -19,6 +25,12 @@ export function isValidEmail(email: string): boolean {
  * server console. Wiring up a real email provider replaces just the console
  * log at the bottom - everything else stays the same. */
 export async function requestOtp(email: string): Promise<void> {
+  const canLogCode =
+    process.env.NODE_ENV !== "production" || process.env.ALLOW_CONSOLE_OTP_IN_PRODUCTION === "true";
+  if (!canLogCode) {
+    throw new OtpDeliveryUnavailableError();
+  }
+
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
 
   // One outstanding code per email: a new request invalidates older codes.

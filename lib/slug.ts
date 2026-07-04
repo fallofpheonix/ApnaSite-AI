@@ -1,4 +1,7 @@
 import { prisma } from "./db";
+import type { Prisma, PrismaClient } from "@prisma/client";
+
+type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
 export function slugify(name: string): string {
   const base = name
@@ -17,11 +20,15 @@ export function slugify(name: string): string {
  * slug is taken, tries base-2, base-3, ... A site that already owns a slug
  * keeps it (excludeSiteId), so republishing never changes a live URL.
  */
-export async function uniqueSlugFor(name: string, excludeSiteId: string): Promise<string> {
+export async function uniqueSlugFor(
+  name: string,
+  excludeSiteId: string,
+  db: PrismaLike = prisma
+): Promise<string> {
   const base = slugify(name);
   let candidate = base;
   for (let i = 2; ; i++) {
-    const existing = await prisma.site.findUnique({ where: { slug: candidate } });
+    const existing = await db.site.findUnique({ where: { slug: candidate } });
     if (!existing || existing.id === excludeSiteId) return candidate;
     candidate = `${base}-${i}`;
   }

@@ -104,9 +104,15 @@ tier: 1 GB), and the code is already structured so **only one file changes** —
    return NextResponse.json({ url: blob.url }, { status: 201 });
    ```
 
-That's it — the editor and the published sites treat the photo URL as opaque,
-so blob URLs flow through unchanged. (`app/uploads/[name]/route.ts`, which
-serves local-disk photos, simply stops being used.)
+4. **Extend the image allowlist.** Published pages and the save-validation
+   only accept image paths matching `/uploads/<name>` (`UPLOAD_PATH_RE` in
+   `lib/types.ts` and `lib/renderSite.ts` — a hardening measure so saved
+   site data can't inject arbitrary URLs). Blob returns absolute
+   `https://….public.blob.vercel-storage.com/…` URLs, so add that host to
+   both regexes or photos will be silently dropped from published sites.
+
+(`app/uploads/[name]/route.ts`, which serves local-disk photos, simply stops
+being used.)
 
 ### Vercel fine print
 
