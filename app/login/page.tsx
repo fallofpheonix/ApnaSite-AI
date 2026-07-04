@@ -64,7 +64,7 @@ export default function LoginPage() {
           <a href="/" className="font-display text-4xl italic text-ink">
             VoxSite AI
           </a>
-          <p className="mt-2 text-ink-soft">
+          <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-ink-soft">
             {step === "email"
               ? "Enter your email and we'll send you a login code. No password needed."
               : `We sent a 6-digit code for ${email.trim()}.`}
@@ -157,6 +157,18 @@ export default function LoginPage() {
             </form>
           )}
         </div>
+
+        <p className="mt-6 text-center text-xs text-ink-soft">
+          By logging in you agree to our{" "}
+          <a href="/terms" className="underline hover:text-ink">
+            Terms
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" className="underline hover:text-ink">
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
     </main>
   );

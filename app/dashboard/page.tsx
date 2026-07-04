@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import AppFooter from "@/components/AppFooter";
 import AppHeader from "@/components/AppHeader";
+import PageHeader from "@/components/PageHeader";
+import UpgradeSheet from "@/components/UpgradeSheet";
 import { useAuthUser } from "@/components/useAuthUser";
 
 interface SiteSummary {
@@ -17,6 +20,7 @@ export default function DashboardPage() {
   const [sites, setSites] = useState<SiteSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
 
   const loadSites = useCallback(async () => {
     const res = await fetch("/api/sites");
@@ -45,7 +49,13 @@ export default function DashboardPage() {
           ? await fetch(`/api/sites/${id}`, { method: "DELETE" })
           : await fetch(`/api/sites/${id}/${action}`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "That didn't work.");
+      if (!res.ok) {
+        if (json.code === "publish_limit_reached") {
+          setUpgradeMessage(json.error);
+          return;
+        }
+        throw new Error(json.error || "That didn't work.");
+      }
       await loadSites();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -58,21 +68,23 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-paper">
       <AppHeader user={user} onLogout={logout} />
 
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl text-ink">My Sites</h1>
-            <p className="text-sm text-ink-soft">
-              Everything you've created. Edit, publish, or take a site offline.
-            </p>
-          </div>
-          <a
-            href="/"
-            className="rounded-xl bg-marigold px-5 py-2.5 text-sm font-semibold text-ink shadow-sm transition-colors hover:bg-marigold-deep hover:text-paper"
-          >
-            + New Site
-          </a>
-        </div>
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        <PageHeader
+          title="My Sites"
+          subtitle={
+            sites === null
+              ? "Everything you've created. Edit, publish, or take a site offline."
+              : `${sites.length} site${sites.length === 1 ? "" : "s"} · ${sites.filter((s) => s.published).length} live`
+          }
+          action={
+            <a
+              href="/"
+              className="flex min-h-[44px] items-center rounded-xl bg-marigold px-5 text-sm font-semibold text-ink shadow-sm transition-colors hover:bg-marigold-deep hover:text-paper"
+            >
+              + New Site
+            </a>
+          }
+        />
 
         {error && (
           <div className="mb-4 rounded-xl border border-brick/20 bg-brick/10 px-5 py-3 text-sm text-brick">
@@ -94,7 +106,7 @@ export default function DashboardPage() {
             {sites.map((site) => (
               <li
                 key={site.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-card p-5 shadow-sm"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-card px-5 py-4 shadow-sm"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -115,7 +127,7 @@ export default function DashboardPage() {
                         href={`/s/${site.slug}`}
                         target="_blank"
                         rel="noopener"
-                        className="text-teal underline hover:text-teal-deep"
+                        className="inline-block py-1.5 text-teal underline hover:text-teal-deep"
                       >
                         /s/{site.slug}
                       </a>
@@ -129,7 +141,7 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap gap-2 text-sm">
                   <a
                     href={`/?site=${site.id}`}
-                    className="rounded-lg border border-ink/15 px-3 py-1.5 font-medium text-ink transition-colors hover:bg-ink/5"
+                    className="flex min-h-[44px] items-center rounded-lg border border-ink/15 px-4 py-2 font-medium text-ink transition-colors hover:bg-ink/5"
                   >
                     Edit
                   </a>
@@ -138,7 +150,7 @@ export default function DashboardPage() {
                       type="button"
                       disabled={busyId === site.id}
                       onClick={() => act(site.id, "unpublish")}
-                      className="rounded-lg border border-ink/15 px-3 py-1.5 font-medium text-ink-soft transition-colors hover:bg-ink/5 disabled:opacity-50"
+                      className="min-h-[44px] rounded-lg border border-ink/15 px-4 py-2 font-medium text-ink-soft transition-colors hover:bg-ink/5 disabled:opacity-50"
                     >
                       Unpublish
                     </button>
@@ -147,7 +159,7 @@ export default function DashboardPage() {
                       type="button"
                       disabled={busyId === site.id}
                       onClick={() => act(site.id, "publish")}
-                      className="rounded-lg bg-teal px-3 py-1.5 font-semibold text-paper transition-colors hover:bg-teal-deep disabled:opacity-50"
+                      className="min-h-[44px] rounded-lg bg-teal px-4 py-2 font-semibold text-paper transition-colors hover:bg-teal-deep disabled:opacity-50"
                     >
                       Publish
                     </button>
@@ -160,7 +172,7 @@ export default function DashboardPage() {
                         void act(site.id, "delete");
                       }
                     }}
-                    className="rounded-lg border border-brick/30 px-3 py-1.5 font-medium text-brick transition-colors hover:bg-brick/10 disabled:opacity-50"
+                    className="min-h-[44px] rounded-lg border border-brick/30 px-4 py-2 font-medium text-brick transition-colors hover:bg-brick/10 disabled:opacity-50"
                   >
                     Delete
                   </button>
@@ -170,6 +182,14 @@ export default function DashboardPage() {
           </ul>
         )}
       </div>
+
+      <AppFooter />
+
+      <UpgradeSheet
+        open={upgradeMessage !== null}
+        message={upgradeMessage ?? ""}
+        onClose={() => setUpgradeMessage(null)}
+      />
     </main>
   );
 }
