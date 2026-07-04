@@ -2,7 +2,7 @@
 
 ## Name (Placeholder)
 
-**VoxSite AI** (or any name you choose)
+**ApnaSite AI** (or any name you choose)
 
 ## Theme
 
@@ -14,7 +14,7 @@ Millions of small shop owners and local businesses still lack a professional onl
 
 ## Solution
 
-VoxSite AI is an AI-powered website generation platform that allows anyone to create and manage a professional business website through natural conversation.
+ApnaSite AI is an AI-powered website generation platform that allows anyone to create and manage a professional business website through natural conversation.
 
 Instead of using drag-and-drop editors or writing code, users simply describe their business by speaking or typing.
 

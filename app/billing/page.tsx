@@ -78,8 +78,8 @@ export default function BillingPage() {
       const rzp = new window.Razorpay({
         key: json.keyId,
         subscription_id: json.subscriptionId,
-        name: "VoxSite AI",
-        description: "VoxSite Pro — monthly",
+        name: "ApnaSite AI",
+        description: "ApnaSite Pro — monthly",
         theme: { color: "#1e5c58" },
         handler: async (response: {
           razorpay_payment_id: string;

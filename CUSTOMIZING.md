@@ -1,4 +1,4 @@
-# Customizing VoxSite AI
+# Customizing ApnaSite AI
 
 Concrete recipes for the changes you're most likely to want. Each one names
 the exact files and shows the code. For the deployment side of things see
@@ -149,7 +149,7 @@ pro: {
   name: "Pro",
   priceInr: 199,            // ← change the monthly price here (₹)
   maxPublishedSites: 5,     // ← and the publish limit here
-  showBadge: false,         // whether published sites carry the VoxSite badge
+  showBadge: false,         // whether published sites carry the ApnaSite badge
   perks: [...],             // bullets shown on /billing
 },
 ```
@@ -219,7 +219,7 @@ Prisma abstracts nearly everything; the app code never mentions SQLite.
 2. **`.env`** — point at the server:
 
    ```bash
-   DATABASE_URL="postgresql://user:pass@host:5432/voxsite"
+   DATABASE_URL="postgresql://user:pass@host:5432/apnasite"
    ```
 
 3. Create the tables: `npx prisma db push`
@@ -243,7 +243,7 @@ line marked `DEV MODE`:
 
 ```ts
 // DEV MODE: no email provider yet, so the code goes to the server console.
-console.log(`\n  [VoxSite login code] ${email}  →  ${code}\n`);
+console.log(`\n  [ApnaSite login code] ${email}  →  ${code}\n`);
 ```
 
 Replace it with a provider call. Example with [Resend](https://resend.com)
@@ -255,10 +255,10 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 await resend.emails.send({
-  from: "VoxSite <login@yourdomain.in>",
+  from: "ApnaSite <login@yourdomain.in>",
   to: email,
-  subject: `${code} is your VoxSite login code`,
-  text: `Your VoxSite login code is ${code}. It expires in 10 minutes.`,
+  subject: `${code} is your ApnaSite login code`,
+  text: `Your ApnaSite login code is ${code}. It expires in 10 minutes.`,
 });
 ```
 

@@ -1,4 +1,4 @@
-# VoxSite AI — project instructions
+# ApnaSite AI — project instructions
 
 - **All visual design work must consult docs/DESIGN-REFERENCES.md first.**
   Section A governs the app's own pages (structure borrowed from PostHog /

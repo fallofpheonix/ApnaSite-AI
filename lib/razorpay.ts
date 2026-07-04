@@ -63,13 +63,13 @@ export async function ensureProPlanId(): Promise<string> {
   if (cachedPlanId) return cachedPlanId;
 
   const pro = PLANS.pro;
-  const wanted = { voxsite_plan: pro.key, voxsite_price_inr: String(pro.priceInr) };
+  const wanted = { apnasite_plan: pro.key, apnasite_price_inr: String(pro.priceInr) };
 
   const existing = await rzp<{ items: RzpPlan[] }>("/plans?count=100");
   const match = existing.items.find(
     (p) =>
-      p.notes?.voxsite_plan === wanted.voxsite_plan &&
-      p.notes?.voxsite_price_inr === wanted.voxsite_price_inr
+      p.notes?.apnasite_plan === wanted.apnasite_plan &&
+      p.notes?.apnasite_price_inr === wanted.apnasite_price_inr
   );
   if (match) {
     cachedPlanId = match.id;
@@ -82,10 +82,10 @@ export async function ensureProPlanId(): Promise<string> {
       period: "monthly",
       interval: 1,
       item: {
-        name: `VoxSite ${pro.name}`,
+        name: `ApnaSite ${pro.name}`,
         amount: pro.priceInr * 100, // paise
         currency: "INR",
-        description: `VoxSite ${pro.name} — up to ${pro.maxPublishedSites} published sites`,
+        description: `ApnaSite ${pro.name} — up to ${pro.maxPublishedSites} published sites`,
       },
       notes: wanted,
     }),
@@ -110,7 +110,7 @@ export async function createSubscription(userId: string): Promise<RzpSubscriptio
       plan_id: planId,
       total_count: 60, // Razorpay requires a cap; 60 monthly cycles = 5 years
       customer_notify: 0,
-      notes: { voxsite_user_id: userId },
+      notes: { apnasite_user_id: userId },
     }),
   });
 }

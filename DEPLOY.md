@@ -1,6 +1,6 @@
-# Deploying VoxSite AI
+# Deploying ApnaSite AI
 
-This guide gets VoxSite from your laptop onto the internet. Two paths, from
+This guide gets ApnaSite from your laptop onto the internet. Two paths, from
 simplest-to-scale to cheapest-to-run:
 
 - **Path A — Vercel + Neon Postgres** (free to start, zero server maintenance)
@@ -41,7 +41,7 @@ and is read-only at runtime. Switching to Postgres is a two-line change
 ### Step 1 — Push to GitHub
 
 ```bash
-git remote add origin https://github.com/<you>/voxsite-ai.git
+git remote add origin https://github.com/<you>/apnasite-ai.git
 git push -u origin main
 ```
 
@@ -74,7 +74,7 @@ Commit and push the schema change.
 ### Step 4 — Import into Vercel
 
 1. Sign up at https://vercel.com with your GitHub account.
-2. "Add New → Project" → pick the `voxsite-ai` repo. Vercel detects Next.js;
+2. "Add New → Project" → pick the `apnasite-ai` repo. Vercel detects Next.js;
    keep all build defaults.
 3. Under **Environment Variables** add:
    - `DATABASE_URL` = the Neon connection string
@@ -135,32 +135,32 @@ sudo apt-get install -y nodejs
 ### Step 2 — Get the app onto the server
 
 ```bash
-sudo mkdir -p /srv/voxsite && sudo chown $USER /srv/voxsite
-git clone https://github.com/<you>/voxsite-ai.git /srv/voxsite
-cd /srv/voxsite
+sudo mkdir -p /srv/apnasite && sudo chown $USER /srv/apnasite
+git clone https://github.com/<you>/apnasite-ai.git /srv/apnasite
+cd /srv/apnasite
 npm ci
 ```
 
 ### Step 3 — Configure
 
-Create `/srv/voxsite/.env`:
+Create `/srv/apnasite/.env`:
 
 ```bash
-DATABASE_URL="file:/var/lib/voxsite/voxsite.db"
-UPLOADS_DIR="/var/lib/voxsite/uploads"
+DATABASE_URL="file:/var/lib/apnasite/apnasite.db"
+UPLOADS_DIR="/var/lib/apnasite/uploads"
 ```
 
-and `/srv/voxsite/.env.local` for the secret:
+and `/srv/apnasite/.env.local` for the secret:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Putting the database and uploads under `/var/lib/voxsite` (not inside the repo
+Putting the database and uploads under `/var/lib/apnasite` (not inside the repo
 checkout) means `git pull` redeploys can never clobber your data:
 
 ```bash
-sudo mkdir -p /var/lib/voxsite/uploads && sudo chown -R $USER /var/lib/voxsite
+sudo mkdir -p /var/lib/apnasite/uploads && sudo chown -R $USER /var/lib/apnasite
 npx prisma db push          # creates the SQLite file + tables
 ```
 
@@ -172,15 +172,15 @@ npm start                    # listens on port 3000
 ```
 
 Keep it alive across reboots with a systemd unit,
-`/etc/systemd/system/voxsite.service`:
+`/etc/systemd/system/apnasite.service`:
 
 ```ini
 [Unit]
-Description=VoxSite AI
+Description=ApnaSite AI
 After=network.target
 
 [Service]
-WorkingDirectory=/srv/voxsite
+WorkingDirectory=/srv/apnasite
 ExecStart=/usr/bin/npm start
 Restart=always
 User=youruser
@@ -191,7 +191,7 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable --now voxsite
+sudo systemctl enable --now apnasite
 ```
 
 ### Step 5 — HTTPS with Caddy (two lines)
@@ -216,12 +216,12 @@ automatically. Point your domain's A record at the server IP first.
 Everything that matters is two things on disk. A nightly cron line covers it:
 
 ```bash
-0 3 * * * tar czf /root/backup-$(date +\%u).tar.gz /var/lib/voxsite
+0 3 * * * tar czf /root/backup-$(date +\%u).tar.gz /var/lib/apnasite
 ```
 
 ### VPS fine print
 
-- Login codes appear in `journalctl -u voxsite -f` until real email is wired.
+- Login codes appear in `journalctl -u apnasite -f` until real email is wired.
 - SQLite happily handles thousands of shops on one box; when you outgrow it,
   the "Swap SQLite for Postgres" recipe in [CUSTOMIZING.md](./CUSTOMIZING.md)
   is a one-word schema change plus one migration run.

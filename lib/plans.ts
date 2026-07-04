@@ -10,7 +10,7 @@ export interface Plan {
   name: string;
   priceInr: number; // per month; 0 = free
   maxPublishedSites: number;
-  /** Whether published sites carry the "Made with VoxSite" footer badge. */
+  /** Whether published sites carry the "Made with ApnaSite" footer badge. */
   showBadge: boolean;
   /** Bullet points for the /billing page. */
   perks: string[];
@@ -26,7 +26,7 @@ export const PLANS: Record<Plan["key"], Plan> = {
     perks: [
       "1 published site",
       "All themes and editing features",
-      'Small "Made with VoxSite" badge on your site',
+      'Small "Made with ApnaSite" badge on your site',
     ],
   },
   pro: {
@@ -35,7 +35,7 @@ export const PLANS: Record<Plan["key"], Plan> = {
     priceInr: 199,
     maxPublishedSites: 5,
     showBadge: false,
-    perks: ["Up to 5 published sites", "No VoxSite badge", "Priority support (email)"],
+    perks: ["Up to 5 published sites", "No ApnaSite badge", "Priority support (email)"],
   },
 };
 

@@ -6,11 +6,11 @@
 // subscription). Never touches other users.
 //
 // Log in as the demo user the normal way: request an OTP for
-// demo@voxsite.test and read the code from the server console.
+// demo@apnasite.test and read the code from the server console.
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const DEMO_EMAIL = "demo@voxsite.test";
+const DEMO_EMAIL = "demo@apnasite.test";
 
 const shared = {
   tagline: "Ghar ki har zaroorat, bas paas mein",

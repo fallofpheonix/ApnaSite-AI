@@ -62,7 +62,7 @@ export default function LoginPage() {
       <div className="stage-enter w-full max-w-md">
         <div className="mb-8 text-center">
           <a href="/" className="font-display text-4xl italic text-ink">
-            VoxSite AI
+            ApnaSite AI
           </a>
           <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-ink-soft">
             {step === "email"

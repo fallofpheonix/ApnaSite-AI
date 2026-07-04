@@ -40,7 +40,7 @@ export interface RenderOptions {
   /** Absolute URL of this page (for og:url and absolutizing og:image).
    * Without it the og tags that need absolute URLs are omitted. */
   pageUrl?: string;
-  /** Free-plan sites carry a small "Made with VoxSite" footer badge linking
+  /** Free-plan sites carry a small "Made with ApnaSite" footer badge linking
    * back to the app (see lib/plans.ts). Pro sites render no branding. */
   showBadge?: boolean;
 }
@@ -222,7 +222,7 @@ ${ogTags}
     color: var(--text-muted);
     font-size: 0.85rem;
   }
-  .voxsite-badge {
+  .apnasite-badge {
     display: inline-block;
     padding: 0.4rem 0.9rem;
     border: 1px solid var(--border);
@@ -231,7 +231,7 @@ ${ogTags}
     text-decoration: none;
     font-size: 0.8rem;
   }
-  .voxsite-badge:hover { color: var(--text); }
+  .apnasite-badge:hover { color: var(--text); }
   @media (max-width: 600px) {
     .hero h1 { font-size: 2rem; }
   }
@@ -291,7 +291,7 @@ ${ogTags}
 
   ${
     options.showBadge !== false
-      ? `<footer><a class="voxsite-badge" href="${origin ?? ""}/" rel="noopener">&#10024; Made with VoxSite</a></footer>`
+      ? `<footer><a class="apnasite-badge" href="${origin ?? ""}/" rel="noopener">&#10024; Made with ApnaSite</a></footer>`
       : ""
   }
 </body>

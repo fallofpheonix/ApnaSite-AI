@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   // The request URL gives us the canonical absolute address for og:url /
   // og:image (works behind a proxy too, since Next respects x-forwarded-*).
-  // The owner's plan decides whether the "Made with VoxSite" badge shows.
+  // The owner's plan decides whether the "Made with ApnaSite" badge shows.
   const ownerPlan = await planForUser(site.userId);
   const html = renderStorefrontHTML(JSON.parse(site.data), {
     pageUrl: req.nextUrl.href,

@@ -181,7 +181,7 @@ export default function Home() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal">
               Websites for small shops
             </p>
-            <h1 className="mt-3 font-display text-5xl italic text-ink sm:text-6xl">VoxSite AI</h1>
+            <h1 className="mt-3 font-display text-5xl italic text-ink sm:text-6xl">ApnaSite AI</h1>
             <p className="mx-auto mt-4 max-w-md text-lg leading-relaxed text-ink-soft">
               Describe your business. We build, design, and publish your website in minutes.
             </p>

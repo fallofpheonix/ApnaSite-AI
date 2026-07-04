@@ -4,7 +4,7 @@ Consult this document before any visual design work — app pages or storefront
 themes. It records **where we take structural discipline from** (section A)
 and **what each storefront theme must feel like** (section B).
 
-The rule in one line: **we borrow structure, never look.** VoxSite's own
+The rule in one line: **we borrow structure, never look.** ApnaSite's own
 identity — "Bazaar Warmth": paper `#FBF1DE`, marigold `#E8A33D`, teal
 `#1E5C58`, brick accents, Newsreader italic display, the jali lattice — is
 settled and is not up for revision in a polish pass.
@@ -58,7 +58,7 @@ What to borrow:
   (~60ch); padding is generous and *consistent* — the same spacing token
   repeats rather than a new value per element.
 
-### The VoxSite translation (our working rules)
+### The ApnaSite translation (our working rules)
 
 1. **One heading pattern everywhere:** page title (display serif, 3xl/4xl) +
    one subtitle line (sm, ink-soft) + optional right-aligned action. Encoded

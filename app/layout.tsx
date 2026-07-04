@@ -3,7 +3,7 @@ import { fontVariableClassNames, karla } from "@/lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VoxSite AI",
+  title: "ApnaSite AI",
   description: "Describe your business. We build your website.",
 };
 

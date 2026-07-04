@@ -212,7 +212,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
       </section>
 
       <footer className="px-8 py-6 text-center text-xs" style={{ color: theme.textMuted }}>
-        Built with VoxSite AI
+        Built with ApnaSite AI
       </footer>
     </div>
   );

@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import LegalPage from "@/components/LegalPage";
 
-export const metadata: Metadata = { title: "Terms of Service — VoxSite AI" };
+export const metadata: Metadata = { title: "Terms of Service — ApnaSite AI" };
 
 // DRAFT terms — written in plain language for review by the site owner.
 // Not legal advice; have a professional review before real payments.
 export default function TermsPage() {
   return (
     <LegalPage title="Terms of Service">
-      <h2>What VoxSite is</h2>
+      <h2>What ApnaSite is</h2>
       <p>
-        VoxSite AI turns your description of your business into a simple website you can edit and
+        ApnaSite AI turns your description of your business into a simple website you can edit and
         publish. It&apos;s built for small shop owners. By creating an account (logging in with
         your email) you agree to these terms.
       </p>
@@ -37,7 +37,7 @@ export default function TermsPage() {
 
       <h2>Plans and payment</h2>
       <p>
-        The Free plan includes one published site with a small &quot;Made with VoxSite&quot;
+        The Free plan includes one published site with a small &quot;Made with ApnaSite&quot;
         badge. The Pro plan (₹199/month) allows up to five published sites without the badge.
         Payments are processed by Razorpay — we never see or store your card details. You can
         cancel anytime; your sites stay up until the end of the paid period, after which the free
@@ -46,7 +46,7 @@ export default function TermsPage() {
 
       <h2>Service, as-is</h2>
       <p>
-        VoxSite is provided as-is, without uptime guarantees. We work hard to keep your sites
+        ApnaSite is provided as-is, without uptime guarantees. We work hard to keep your sites
         online, but we&apos;re not liable for lost business from downtime or errors. We may change
         or discontinue features with reasonable notice.
       </p>

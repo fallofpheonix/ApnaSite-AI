@@ -11,7 +11,7 @@ export default function LegalPage({
     <main className="min-h-screen bg-paper">
       <div className="mx-auto max-w-2xl px-5 py-10">
         <a href="/" className="font-display text-xl italic text-ink">
-          VoxSite AI
+          ApnaSite AI
         </a>
 
         <div className="mt-6 rounded-xl border border-marigold/40 bg-marigold-soft/50 px-4 py-3 text-sm text-ink">

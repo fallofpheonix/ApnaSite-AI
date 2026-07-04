@@ -32,7 +32,7 @@ export async function requestOtp(email: string): Promise<void> {
   });
 
   // DEV MODE: no email provider yet, so the code goes to the server console.
-  console.log(`\n  [VoxSite login code] ${email}  →  ${code}\n`);
+  console.log(`\n  [ApnaSite login code] ${email}  →  ${code}\n`);
 }
 
 export type VerifyResult =

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import LegalPage from "@/components/LegalPage";
 
-export const metadata: Metadata = { title: "Privacy Policy — VoxSite AI" };
+export const metadata: Metadata = { title: "Privacy Policy — ApnaSite AI" };
 
 // DRAFT privacy policy — plain language, for review by the site owner.
 // Not legal advice; have a professional review before real payments.

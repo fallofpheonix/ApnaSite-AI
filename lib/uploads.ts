@@ -5,7 +5,7 @@ import path from "path";
 // runtime uploads placed there would 404 in production. Files here are
 // served by app/uploads/[name]/route.ts instead.
 //
-// On a VPS, point UPLOADS_DIR at a persistent path (e.g. /var/lib/voxsite/
+// On a VPS, point UPLOADS_DIR at a persistent path (e.g. /var/lib/apnasite/
 // uploads) so redeploys don't touch it. On serverless hosts (Vercel) local
 // disk doesn't persist at all — swap the storage calls in
 // app/api/upload/route.ts for S3/R2/Vercel Blob; this constant and the

@@ -11,7 +11,7 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
   return (
     <header className="flex items-center justify-between border-b border-ink/10 bg-card/60 px-5 py-3 backdrop-blur-sm sm:px-8">
       <a href="/" className="font-display text-xl italic text-ink">
-        VoxSite AI
+        ApnaSite AI
       </a>
       <nav className="flex items-center gap-4 text-sm">
         {user ? (

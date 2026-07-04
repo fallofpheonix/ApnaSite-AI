@@ -1,4 +1,4 @@
-# VoxSite AI — Architecture Guide
+# ApnaSite AI — Architecture Guide
 
 This document explains how the whole app fits together: what every folder and
 file does, and how data travels from a shop owner speaking into the mic all
@@ -10,7 +10,7 @@ first time it appears.
 
 ## The one-paragraph version
 
-VoxSite AI is a [Next.js](https://nextjs.org) app. Next.js is a framework
+ApnaSite AI is a [Next.js](https://nextjs.org) app. Next.js is a framework
 that lets one project contain both the **pages people see in the browser**
 (the "frontend") and the **code that runs on the server** (the "backend" —
 things like talking to the database or calling the Claude AI). A shop owner
