@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { renderStorefrontHTML } from "@/lib/renderSite";
 import { planForUser } from "@/lib/plans";
+import { validStorefront } from "@/lib/types";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -22,8 +23,26 @@ export async function GET(req: NextRequest, { params }: Params) {
   // The request URL gives us the canonical absolute address for og:url /
   // og:image (works behind a proxy too, since Next respects x-forwarded-*).
   // The owner's plan decides whether the "Made with ApnaSite" badge shows.
+  let data: unknown;
+  try {
+    data = JSON.parse(site.data);
+  } catch {
+    console.error("Published site has invalid JSON:", site.id);
+    return new Response("<h1>Site unavailable</h1>", {
+      status: 500,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+  if (!validStorefront(data)) {
+    console.error("Published site has invalid storefront data:", site.id);
+    return new Response("<h1>Site unavailable</h1>", {
+      status: 500,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
   const ownerPlan = await planForUser(site.userId);
-  const html = renderStorefrontHTML(JSON.parse(site.data), {
+  const html = renderStorefrontHTML(data, {
     pageUrl: req.nextUrl.href,
     showBadge: ownerPlan.showBadge,
   });

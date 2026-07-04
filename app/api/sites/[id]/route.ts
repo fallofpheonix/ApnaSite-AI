@@ -24,13 +24,23 @@ export async function GET(req: NextRequest, { params }: Params) {
   const result = await ownedSite(req, id);
   if ("error" in result) return result.error;
   const { site } = result;
+  let data: unknown;
+  try {
+    data = JSON.parse(site.data);
+  } catch {
+    return NextResponse.json({ error: "Saved site data is corrupted." }, { status: 500 });
+  }
+  if (!validStorefront(data)) {
+    return NextResponse.json({ error: "Saved site data is invalid." }, { status: 500 });
+  }
+
   return NextResponse.json({
     site: {
       id: site.id,
       name: site.name,
       slug: site.slug,
       published: site.published,
-      data: JSON.parse(site.data),
+      data,
     },
   });
 }

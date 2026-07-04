@@ -1,7 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Language, StorefrontData } from "./types";
 
-const client = new Anthropic();
+// 30s cap per attempt (the SDK aborts via AbortController internally) and
+// exactly one retry — the SDK retries timeouts, connection errors, 429 and
+// 5xx with backoff. A shop owner watching the loading screen shouldn't wait
+// longer than ~a minute worst-case.
+const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
 
 const STOREFRONT_SCHEMA = {
   type: "object",
