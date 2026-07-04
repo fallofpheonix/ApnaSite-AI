@@ -31,6 +31,13 @@ body {
     );
 }
 
+/* Right-edge fade on horizontally scrollable strips — signals "more to the
+   side" on narrow screens where the scrollbar is invisible. */
+.scroll-fade {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+}
+
 .stage-enter {
   animation: stage-fade-up 0.45s ease-out both;
 }
@@ -57,11 +64,53 @@ body {
   }
 }
 
+/* Readable defaults for the /terms and /privacy prose. */
+.legal-prose h2 {
+  font-family: var(--font-newsreader), serif;
+  font-size: 1.25rem;
+  margin: 1.75rem 0 0.5rem;
+  color: theme("colors.ink.DEFAULT");
+}
+.legal-prose p,
+.legal-prose ul {
+  margin: 0.5rem 0;
+  font-size: 0.925rem;
+  line-height: 1.65;
+  color: theme("colors.ink.soft");
+}
+.legal-prose ul {
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+.legal-prose li {
+  margin: 0.35rem 0;
+}
+.legal-prose strong {
+  color: theme("colors.ink.DEFAULT");
+}
+
 [contenteditable="true"] {
   outline: none;
   cursor: text;
   border-radius: 0.3rem;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Empty editable fields must stay visible and tappable — especially on touch,
+   where there's no hover affordance. The placeholder text itself provides the
+   tap target. */
+[contenteditable="true"]:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
+  font-style: italic;
+  pointer-events: none;
+}
+
+/* Remove the double-tap-to-zoom delay on all controls (mobile browsers). */
+button,
+a,
+[contenteditable="true"] {
+  touch-action: manipulation;
 }
 
 [contenteditable="true"]:hover {

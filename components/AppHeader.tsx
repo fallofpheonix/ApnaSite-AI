@@ -16,14 +16,14 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
       <nav className="flex items-center gap-4 text-sm">
         {user ? (
           <>
-            <a href="/dashboard" className="font-medium text-teal hover:text-teal-deep">
+            <a href="/dashboard" className="px-1 py-2.5 font-medium text-teal hover:text-teal-deep">
               My Sites
             </a>
             <span className="hidden text-ink-soft sm:inline">{user.email}</span>
             <button
               type="button"
               onClick={onLogout}
-              className="rounded-lg border border-ink/15 px-3 py-1.5 font-medium text-ink-soft transition-colors hover:bg-ink/5"
+              className="min-h-[40px] rounded-lg border border-ink/15 px-3 py-2 font-medium text-ink-soft transition-colors hover:bg-ink/5"
             >
               Log out
             </button>
@@ -31,7 +31,7 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
         ) : user === null ? (
           <a
             href="/login"
-            className="rounded-lg bg-teal px-4 py-1.5 font-semibold text-paper transition-colors hover:bg-teal-deep"
+            className="flex min-h-[40px] items-center rounded-lg bg-teal px-4 py-2 font-semibold text-paper transition-colors hover:bg-teal-deep"
           >
             Log in
           </a>

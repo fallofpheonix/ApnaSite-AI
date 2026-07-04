@@ -131,7 +131,7 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
             onClick={() => setLanguage(lang)}
             disabled={loading}
             aria-pressed={language === lang}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-[44px] rounded-full px-5 py-2 text-sm font-medium transition-colors ${
               language === lang
                 ? "bg-teal text-paper shadow-sm"
                 : "text-ink-soft hover:bg-ink/5"
