@@ -19,11 +19,37 @@ dev-only assumptions).
 
 ## Environment variables
 
-| Variable            | Required | What it is                                                                                            |
-| ------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`      | yes      | Prisma connection string. SQLite: `file:./dev.db` · Postgres: `postgresql://user:pass@host/db`         |
-| `ANTHROPIC_API_KEY` | no       | Claude API key. Without it the app runs in **sample mode** (placeholder content instead of real AI).   |
-| `UPLOADS_DIR`       | no       | Directory for uploaded product photos. Defaults to `./uploads` next to the app. Set it to a persistent path on a VPS. |
+The complete list. "Without it" is what actually breaks — anything not
+marked **required** degrades gracefully.
+
+| Variable            | Required | What it is | Without it |
+| ------------------- | -------- | ---------- | ---------- |
+| `DATABASE_URL`      | yes      | Prisma connection string. SQLite: `file:./dev.db` · Postgres: `postgresql://user:pass@host/db`. Use an **absolute** file path when running the standalone server (see Path B, Step 4). | App won't start. |
+| `RESEND_API_KEY`    | prod: yes | Resend API key for login-code emails. | Production login **fails closed** (503 on code request) — no stranger can log in. Dev falls back to console codes. |
+| `EMAIL_FROM`        | no       | Verified sender, e.g. `ApnaSite AI <login@yourdomain.in>`. | Falls back to Resend's shared test sender (`onboarding@resend.dev`), which only delivers to your own Resend account inbox. |
+| `ANTHROPIC_API_KEY` | no       | Claude API key for site generation. | **Sample mode**: every generation returns placeholder content; the rest of the product works. |
+| `UPLOADS_DIR`       | no       | Directory for uploaded product photos. Defaults to `./uploads` next to the app. Set a persistent path on a VPS. | Photos land in `./uploads`, which is wiped on redeploy on most hosts. |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | no | Razorpay API keys (test or live). | Billing page honestly shows checkout disabled; free plan limits still enforced. |
+| `RAZORPAY_WEBHOOK_SECRET` | with payments | Secret entered when registering the webhook in the Razorpay dashboard. | Webhook events are rejected → renewals/cancellations never sync; only needed once payments are live. |
+| `ALLOW_CONSOLE_OTP_IN_PRODUCTION` | no | Escape hatch: `true` prints login codes to the server console in production. | Nothing — leave it unset except for a one-off production smoke test before email is configured. |
+| `PORT`              | no       | Port for `next start` / the standalone server. | Defaults to 3000. |
+
+## Email OTP: Resend setup (SPF/DKIM)
+
+Login codes are sent with [Resend](https://resend.com) (free tier: 100
+emails/day — plenty for launch).
+
+1. Create a Resend account and an API key → set `RESEND_API_KEY`.
+2. **Verify your sending domain** (Resend dashboard → Domains → Add
+   Domain). Resend shows you 2–3 DNS records to add at your DNS host:
+   a TXT record for SPF and a `resend._domainkey` TXT record for DKIM
+   (plus an optional DMARC record — add it). Propagation is usually
+   minutes; the dashboard flips to **Verified**.
+3. Set `EMAIL_FROM` to a sender on that domain, display-name included:
+   `ApnaSite AI <login@yourdomain.in>`.
+4. Until the domain is verified you can leave `EMAIL_FROM` unset — codes
+   go out from Resend's shared test sender, but **only to the email of
+   your own Resend account**, so it's for smoke-testing only.
 
 ---
 
@@ -176,6 +202,20 @@ npx prisma db push          # creates the SQLite file + tables
 npm run build
 npm start                    # listens on port 3000
 ```
+
+The build also produces a self-contained server in `.next/standalone`
+(`output: "standalone"` in next.config.js) — same app, no `npm`/full
+`node_modules` needed at runtime, which makes for a leaner service:
+
+```bash
+cp -r .next/static .next/standalone/.next/   # once per build
+node .next/standalone/server.js
+```
+
+**Standalone caveat:** keep `DATABASE_URL` **absolute**
+(`file:/var/lib/apnasite/apnasite.db`, as in Step 3). A relative
+`file:./dev.db` resolves inside the standalone bundle, and the server
+will quietly run against a fresh, empty database.
 
 Keep it alive across reboots with a systemd unit,
 `/etc/systemd/system/apnasite.service`:

@@ -36,6 +36,9 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Self-contained server in .next/standalone (node .next/standalone/server.js)
+  // — what a VPS/systemd/Docker deploy runs; DEPLOY.md Path B relies on it.
+  output: "standalone",
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
