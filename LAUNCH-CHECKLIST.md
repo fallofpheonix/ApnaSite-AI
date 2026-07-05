@@ -5,6 +5,16 @@ in order. Tags: **[You]** = account/admin work only you can do,
 **[Code]** = a coding session, **[Both]** = mixed. Estimates are
 first-time honest, not best-case.
 
+**The code is done.** Pre-launch hardening is complete and verified:
+email OTP (Resend), client-error + CSP-violation logging into the host
+logs, support-contact wiring, the billing lapse guard (a stale "active"
+subscription stops granting Pro once its period is >3 days past), and the
+orphaned-photo disk sweep. What's left below is almost entirely
+**account setup and one deploy** — the only remaining code touchpoints
+are the deploy-time swaps in §4 (Postgres provider word, Blob upload) and
+a single validation session in §1, both of which need your accounts to
+exist first.
+
 The two hard blockers for strangers are **№2 (email OTP)** — today login
 codes print to the server console, so no stranger can ever log in — and
 **№1 (real API key)** — without it every generated site is the same
@@ -61,6 +71,8 @@ Set in the host's dashboard (never commit them):
 | `DATABASE_URL` | yes | Neon (or SQLite path on VPS) |
 | `ANTHROPIC_API_KEY` | yes | №1 |
 | `RESEND_API_KEY` | yes | №2 |
+| `SUPPORT_EMAIL` | recommended | your support inbox (№7) |
+| `SUPPORT_WHATSAPP` | optional | support number with country code (№7) |
 | `UPLOADS_DIR` | VPS only | persistent path |
 | `BLOB_READ_WRITE_TOKEN` | Vercel only | auto-added by Blob store |
 | `RAZORPAY_KEY_ID/SECRET`, `RAZORPAY_WEBHOOK_SECRET` | only when payments go live (№8) | Razorpay dashboard |
@@ -73,12 +85,16 @@ the og-preview card renders.
 
 ## Phase 3 — trust & money (can trail the launch by days)
 
-### 7. Legal pages out of draft — [You] · ~1h
-Fill the two `[contact email — to be added]` placeholders in
-`app/terms/page.tsx` and `app/privacy/page.tsx`, read both drafts as the
-owner and adjust, then remove the "Draft" banner (delete the banner block
-in `components/LegalPage.tsx`). They're plain-language drafts, not legal
-advice — a professional pass is worth it before real payments.
+### 7. Support contact + legal pages out of draft — [You] · ~1h
+The wiring is done and env-gated. Set `SUPPORT_EMAIL` (and optionally
+`SUPPORT_WHATSAPP`) in the host env — that alone fills the legal-page
+contact lines and lights up the "Need help?" links in the footer, the
+error page, and billing failure messages (all render nothing while unset,
+so there's no half-configured state to worry about). Then read both legal
+drafts as the owner and adjust, and remove the "Draft" banner (delete the
+banner block in `components/LegalPage.tsx`). They're plain-language
+drafts, not legal advice — a professional pass is worth it before real
+payments.
 
 ### 8. Razorpay: decide free-only vs paid launch — [You] · KYC takes days
 Launching free-only is fine: without keys the plans page honestly shows
@@ -88,11 +104,15 @@ webhook URL (dashboard → Settings → Webhooks → `/api/billing/webhook`,
 same secret in env). **[Code]** 30 min to verify the flow with test keys
 first (`CUSTOMIZING.md §6` explains the three-request flow).
 
-### 9. Backups + basic monitoring — [Both] · ~1h
+### 9. Backups + basic monitoring — [You] · ~1h
 Neon has point-in-time restore built in (check it's on); VPS = the cron
-line in DEPLOY.md §6. Add a free uptime ping (e.g. UptimeRobot) on `/`
-and `/s/demo-bakery`, and check host error logs after day 1. ~~**[Code]**
-optional: a `/api/health` route if the pinger needs one.~~ ✅ Done —
+line in DEPLOY.md §6. That same cron runs `npm run cleanup`, which now
+also sweeps orphaned photos off disk (files no site references, older than
+a day) — run it once with `--dry-run` first to see what it would reclaim.
+Add a free uptime ping (e.g. UptimeRobot) on `/` and `/s/demo-bakery`,
+and check host error logs after day 1 — client-side errors and CSP
+violations now land there too, prefixed `[client-error]`, so a broken
+phone browser or a bad third-party script shows up without any dashboard.
 `/api/health` exists; point the pinger at it.
 
 ## Phase 4 — first 10 users
@@ -133,5 +153,7 @@ signal appears, adding these is pure overhead.
 - **CDN / object storage for uploads** — when deploying to a serverless
   host (no persistent disk — Vercel Blob diff is in DEPLOY.md) or at the
   first traffic spike that makes `./uploads` the bottleneck.
-- **Error/uptime monitoring (Sentry-class)** — at the first paying user;
-  before that, the UptimeRobot ping (№9) plus host logs are enough.
+- **Error/uptime monitoring (Sentry-class)** — at the first paying user.
+  Before that, the client-error/CSP beacon already forwards browser
+  failures into the host logs (`[client-error]`), so the UptimeRobot ping
+  (№9) plus `grep` on the logs covers the blind spot without a service.
