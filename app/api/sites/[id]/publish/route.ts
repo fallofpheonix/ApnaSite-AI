@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { uniqueSlugFor } from "@/lib/slug";
-import { PAID_STATUSES, PLANS, type Plan } from "@/lib/plans";
+import { PLANS, planFromSubscription, type Plan } from "@/lib/plans";
 
 type Params = { params: Promise<{ id: string }> };
 const SLUG_RETRIES = 3;
@@ -23,10 +23,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         if (!site || site.userId !== user.id) return { kind: "not_found" as const };
 
         const sub = await tx.subscription.findUnique({ where: { userId: user.id } });
-        const plan: Plan =
-          sub && PAID_STATUSES.has(sub.status) && PLANS[sub.planKey as Plan["key"]]
-            ? PLANS[sub.planKey as Plan["key"]]
-            : PLANS.free;
+        const plan: Plan = planFromSubscription(sub);
 
         // Plan limit check — only when this would occupy a NEW published slot.
         // Re-publishing an already-live site (e.g. after an edit) is always fine.

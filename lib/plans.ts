@@ -43,12 +43,49 @@ export const PLANS: Record<Plan["key"], Plan> = {
  * Razorpay's state right after checkout, before the first charge settles. */
 export const PAID_STATUSES = new Set(["active", "authenticated"]);
 
-/** The user's effective plan: an active Razorpay subscription → that plan,
- * anything else (no row, halted, cancelled, expired) → free. */
-export async function planForUser(userId: string): Promise<Plan> {
-  const sub = await prisma.subscription.findUnique({ where: { userId } });
-  if (sub && PAID_STATUSES.has(sub.status) && PLANS[sub.planKey as Plan["key"]]) {
+/** Grace period past currentPeriodEnd before a subscription is treated as
+ * lapsed regardless of status. Razorpay renews at period end and the status
+ * webhook can lag by a day; 3 days covers retries. Past that, a row still
+ * marked "active" almost certainly means a webhook we never received (renewal
+ * failed, or a cancel/halt notification was dropped) — so we stop honouring it
+ * rather than grant paid features forever. */
+export const PERIOD_END_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** The fields of a Subscription row that decide the plan. Kept structural so
+ * both a full Prisma row and an in-transaction read satisfy it. */
+export interface PlanSubscription {
+  status: string;
+  planKey: string;
+  currentPeriodEnd: Date | null;
+}
+
+/** The effective plan for a subscription row (or its absence). The single
+ * source of truth for "does this row grant paid features" — every gate resolves
+ * through here so the stale-period rule can't be bypassed. Paid only when the
+ * status grants it, the planKey is real, AND the period hasn't lapsed past the
+ * grace window. Anything else (no row, halted, cancelled, expired, stale) → free. */
+export function planFromSubscription(sub: PlanSubscription | null): Plan {
+  if (
+    sub &&
+    PAID_STATUSES.has(sub.status) &&
+    PLANS[sub.planKey as Plan["key"]] &&
+    !periodLapsed(sub.currentPeriodEnd)
+  ) {
     return PLANS[sub.planKey as Plan["key"]];
   }
   return PLANS.free;
+}
+
+/** The user's effective plan, read from the database. */
+export async function planForUser(userId: string): Promise<Plan> {
+  const sub = await prisma.subscription.findUnique({ where: { userId } });
+  return planFromSubscription(sub);
+}
+
+/** True when currentPeriodEnd is more than the grace window in the past. A
+ * null period end (never set — e.g. status set before the first charge) is
+ * not treated as lapsed; the status alone governs until a period is known. */
+function periodLapsed(currentPeriodEnd: Date | null): boolean {
+  if (!currentPeriodEnd) return false;
+  return currentPeriodEnd.getTime() < Date.now() - PERIOD_END_GRACE_MS;
 }

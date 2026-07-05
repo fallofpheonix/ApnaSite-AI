@@ -53,4 +53,27 @@ describe("publish limits", () => {
     );
     expect(res.status).toBe(200);
   });
+
+  it("a stale 'active' sub (period ended >3 days ago) is treated as free at the publish gate", async () => {
+    const { user, cookie } = await userWithSession("limit-stale");
+    await prisma.subscription.create({
+      data: {
+        userId: user.id,
+        planKey: "pro",
+        razorpaySubscriptionId: `sub_stale_${user.id.slice(-8)}`,
+        status: "active",
+        // Renewal/cancel webhook never arrived; the period lapsed long ago.
+        currentPeriodEnd: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      },
+    });
+    await makeSite(user.id, { published: true, slug: `stale1-${user.id.slice(-6)}` });
+    const draft = await makeSite(user.id);
+
+    const res = await publish(
+      jsonReq(`/api/sites/${draft.id}/publish`, { cookie }),
+      routeParams({ id: draft.id })
+    );
+    expect(res.status).toBe(402);
+    expect((await res.json()).plan).toBe("free");
+  });
 });
