@@ -31,6 +31,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "You're already on Pro." }, { status: 400 });
   }
 
+  // Idempotency: an abandoned checkout leaves a "created" subscription both
+  // here and at Razorpay. Reopening checkout with the same id resumes it
+  // instead of minting a fresh subscription per click.
+  const existing = await prisma.subscription.findUnique({ where: { userId: user.id } });
+  if (existing && existing.status === "created") {
+    return NextResponse.json({
+      subscriptionId: existing.razorpaySubscriptionId,
+      keyId: razorpayKeyId(),
+    });
+  }
+
   try {
     const sub = await createSubscription(user.id);
 

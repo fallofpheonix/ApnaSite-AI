@@ -102,6 +102,12 @@ export interface RzpSubscription {
   current_end: number | null; // unix seconds
 }
 
+/** Current subscription state straight from Razorpay — used to double-check
+ * before (re)activating locally. */
+export async function getSubscription(subscriptionId: string): Promise<RzpSubscription> {
+  return rzp<RzpSubscription>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
+}
+
 export async function createSubscription(userId: string): Promise<RzpSubscription> {
   const planId = await ensureProPlanId();
   return rzp<RzpSubscription>("/subscriptions", {

@@ -86,16 +86,24 @@ export default function BillingPage() {
           razorpay_subscription_id: string;
           razorpay_signature: string;
         }) => {
-          const verifyRes = await fetch("/api/billing/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(response),
-          });
-          const verifyJson = await verifyRes.json();
-          if (!verifyRes.ok) {
-            setError(verifyJson.error || "Payment verification failed.");
+          // An exception here would vanish inside Razorpay's script — the
+          // user would have paid with no feedback at all.
+          try {
+            const verifyRes = await fetch("/api/billing/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+            const verifyJson = await verifyRes.json();
+            if (!verifyRes.ok) {
+              setError(verifyJson.error || "Payment verification failed.");
+            }
+            await load();
+          } catch {
+            setError(
+              "Payment went through, but we couldn't confirm it just now. Refresh this page in a minute — your plan will update."
+            );
           }
-          await load();
         },
       });
       rzp.open();
