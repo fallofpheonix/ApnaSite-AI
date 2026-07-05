@@ -83,8 +83,13 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
   // description and (when available) the first product photo.
   const description = metaDescription(data);
   let origin: string | null = null;
+  let canonicalUrl: string | null = null;
   try {
-    origin = options.pageUrl ? new URL(options.pageUrl).origin : null;
+    if (options.pageUrl) {
+      const u = new URL(options.pageUrl);
+      origin = u.origin;
+      canonicalUrl = u.origin + u.pathname; // no query — one canonical per site
+    }
   } catch {
     // Malformed pageUrl (odd proxy header) — skip absolute og tags, render on.
   }
@@ -95,12 +100,31 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
     `<meta property="og:title" content="${esc(data.shopName)}" />`,
     `<meta property="og:description" content="${esc(description)}" />`,
     `<meta property="og:site_name" content="${esc(data.shopName)}" />`,
-    options.pageUrl ? `<meta property="og:url" content="${esc(options.pageUrl)}" />` : "",
+    canonicalUrl ? `<link rel="canonical" href="${esc(canonicalUrl)}" />` : "",
+    canonicalUrl ? `<meta property="og:url" content="${esc(canonicalUrl)}" />` : "",
     ogImage ? `<meta property="og:image" content="${esc(ogImage)}" />` : "",
     `<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}" />`,
   ]
     .filter(Boolean)
     .join("\n");
+
+  // LocalBusiness structured data for search engines — only fields the owner
+  // actually filled in. Free-text values (address, hours) stay free text:
+  // schema.org accepts Text for both. "<" is escaped so user content can
+  // never break out of the script tag.
+  const localBusiness: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: data.shopName,
+  };
+  if (description) localBusiness.description = description;
+  if (data.address) localBusiness.address = data.address;
+  if (data.phone) localBusiness.telephone = data.phone;
+  if (data.email) localBusiness.email = data.email;
+  if (data.hours) localBusiness.openingHours = data.hours;
+  if (canonicalUrl) localBusiness.url = canonicalUrl;
+  if (ogImage) localBusiness.image = ogImage;
+  const jsonLd = JSON.stringify(localBusiness).replace(/</g, "\\u003c");
 
   const whatsappLink = data.whatsapp ? waLink(data.whatsapp) : null;
   const phoneLink = data.phone ? telLink(data.phone) : null;
@@ -122,6 +146,7 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
 <title>${esc(data.shopName)}${data.tagline ? ` — ${esc(data.tagline)}` : ""}</title>
 <meta name="description" content="${esc(description)}" />
 ${ogTags}
+<script type="application/ld+json">${jsonLd}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="${GOOGLE_FONTS_HREF}" />
