@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, type CSSProperties, type JSX } from "react";
+import { useRef, useEffect, type CSSProperties, type ElementType, type JSX } from "react";
 
 interface EditableTextProps {
   value: string;
@@ -20,7 +20,7 @@ export default function EditableText({
   style,
 }: EditableTextProps) {
   const ref = useRef<HTMLElement>(null);
-  const Tag = as as any;
+  const Tag = as as ElementType;
 
   useEffect(() => {
     if (ref.current && ref.current.innerText !== value) {

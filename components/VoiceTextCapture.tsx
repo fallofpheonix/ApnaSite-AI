@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { LANGUAGE_LABELS, MAX_DESCRIPTION_LENGTH, type Language } from "@/lib/types";
 
 interface VoiceTextCaptureProps {
@@ -8,11 +8,16 @@ interface VoiceTextCaptureProps {
   loading: boolean;
 }
 
-// Minimal shape of the Web Speech API we rely on — not in standard TS lib.dom yet.
-interface SpeechRecognitionResultEvent extends Event {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
+// Web Speech API surface types live in speech-types.d.ts.
+function speechCtor(): SpeechRecognitionConstructor | undefined {
+  return window.SpeechRecognition || window.webkitSpeechRecognition;
 }
+
+// Browser capability never changes within a page's lifetime, so "supported?"
+// is a static external value, not state: false during SSR, real answer on the
+// client. useSyncExternalStore handles the hydration handoff without a
+// setState-in-effect.
+const subscribeNever = () => () => {};
 
 const MIN_WORD_COUNT = 4;
 const LANGUAGES: Language[] = ["hinglish", "hi", "en"];
@@ -36,22 +41,25 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<Language>("hinglish");
   const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
   const [hasRecordedOnce, setHasRecordedOnce] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Lives in a ref (not the effect closure) so each new recording starts
   // from a clean transcript instead of appending to the previous one.
   const finalTranscriptRef = useRef("");
 
-  useEffect(() => {
-    const SpeechRecognitionCtor =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    setSpeechSupported(Boolean(SpeechRecognitionCtor));
-    if (!SpeechRecognitionCtor) return;
+  const speechSupported = useSyncExternalStore(
+    subscribeNever,
+    () => Boolean(speechCtor()),
+    () => false
+  );
 
-    const recognition = new SpeechRecognitionCtor();
+  useEffect(() => {
+    const Ctor = speechCtor();
+    if (!Ctor) return;
+
+    const recognition = new Ctor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognitionRef.current = recognition;
@@ -93,11 +101,10 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
     };
   }, []);
 
+  // The index is reset in the submit handler (where loading starts), so this
+  // effect only runs the ticker.
   useEffect(() => {
-    if (!loading) {
-      setLoadingMessageIndex(0);
-      return;
-    }
+    if (!loading) return;
     const interval = setInterval(() => {
       setLoadingMessageIndex((i) => (i + 1) % LOADING_MESSAGES.length);
     }, 1700);
@@ -197,6 +204,7 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
         onChange={(e) => setText(e.target.value)}
         placeholder={`e.g. "I own a bakery called Sweet Crumbs, open 8am-6pm Tue-Sun, we sell sourdough, croissants, custom cakes, located in downtown Lucknow, phone 98765-43210"`}
         rows={5}
+        maxLength={MAX_DESCRIPTION_LENGTH}
         className="w-full rounded-2xl border border-ink/10 bg-card p-5 text-lg text-ink shadow-sm placeholder:text-ink-soft/60 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/25"
       />
 
@@ -210,7 +218,10 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
       <button
         type="button"
         disabled={!canSubmit}
-        onClick={() => onSubmit(text.trim(), language)}
+        onClick={() => {
+          setLoadingMessageIndex(0);
+          onSubmit(text.trim(), language);
+        }}
         className="w-full rounded-2xl bg-teal py-5 text-xl font-semibold text-paper shadow-md transition-colors hover:bg-teal-deep disabled:cursor-not-allowed disabled:bg-ink/15 disabled:text-ink-soft"
       >
         {loading ? LOADING_MESSAGES[loadingMessageIndex] : "Generate My Website"}

@@ -46,18 +46,23 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    const res = await fetch("/api/billing");
-    if (res.status === 401) {
-      window.location.href = "/login?next=/billing";
-      return;
-    }
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Couldn't load billing info.");
-      return;
-    }
-    setInfo(json);
+  // Promise-chain (not async/await) so state updates live in .then callbacks:
+  // callable from the mount effect without setState-in-effect, awaitable from
+  // the checkout handler.
+  const load = useCallback(() => {
+    return fetch("/api/billing")
+      .then((res) => res.json().then((json) => ({ res, json })))
+      .then(({ res, json }) => {
+        if (res.status === 401) {
+          window.location.href = "/login?next=/billing";
+          return;
+        }
+        if (!res.ok) {
+          setError(json.error || "Couldn't load billing info.");
+          return;
+        }
+        setInfo(json);
+      });
   }, []);
 
   useEffect(() => {

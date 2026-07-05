@@ -23,18 +23,23 @@ export default function DashboardPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
 
-  const loadSites = useCallback(async () => {
-    const res = await fetch("/api/sites");
-    if (res.status === 401) {
-      window.location.href = "/login?next=/dashboard";
-      return;
-    }
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Couldn't load your sites.");
-      return;
-    }
-    setSites(json.sites);
+  // Promise-chain (not async/await) so state updates live in .then callbacks:
+  // callable from the mount effect without setState-in-effect, awaitable from
+  // action handlers.
+  const loadSites = useCallback(() => {
+    return fetch("/api/sites")
+      .then((res) => res.json().then((json) => ({ res, json })))
+      .then(({ res, json }) => {
+        if (res.status === 401) {
+          window.location.href = "/login?next=/dashboard";
+          return;
+        }
+        if (!res.ok) {
+          setError(json.error || "Couldn't load your sites.");
+          return;
+        }
+        setSites(json.sites);
+      });
   }, []);
 
   useEffect(() => {
