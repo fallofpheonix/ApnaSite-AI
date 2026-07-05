@@ -236,33 +236,18 @@ reads rows from the old file and `create()`s them against the new URL.
 
 ---
 
-## 8. Swap console-OTP for real email
+## 8. Email OTP delivery (built in — Resend)
 
-The entire swap is the bottom of `requestOtp()` in **`lib/auth.ts`** — the
-line marked `DEV MODE`:
+Real email delivery ships with the app: **`lib/email.ts`** talks to the
+Resend REST API directly (no SDK), and `requestOtp()` in **`lib/auth.ts`**
+picks the delivery mode from the environment:
 
-```ts
-// DEV MODE: no email provider yet, so the code goes to the server console.
-console.log(`\n  [ApnaSite login code] ${email}  →  ${code}\n`);
-```
+- `RESEND_API_KEY` set → branded OTP email (sender from `EMAIL_FROM`)
+- unset in dev → the code prints to the server console
+- unset in production → login fails closed (503), never silently
 
-Replace it with a provider call. Example with [Resend](https://resend.com)
-(free tier: 100 emails/day, `npm install resend`, set `RESEND_API_KEY` in
-`.env.local`):
-
-```ts
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-await resend.emails.send({
-  from: "ApnaSite <login@yourdomain.in>",
-  to: email,
-  subject: `${code} is your ApnaSite login code`,
-  text: `Your ApnaSite login code is ${code}. It expires in 10 minutes.`,
-});
-```
-
-Nothing else changes — hashing, expiry (10 min), attempt limits (5) and the
-session cookie all already live in `lib/auth.ts`. Also update the dev-mode
-message in `app/api/auth/request-otp/route.ts` (it currently tells users to
-look at the server console when `NODE_ENV !== "production"`).
+Setup (API key, domain verification, SPF/DKIM) is in DEPLOY.md §"Email
+OTP". To swap Resend for another provider, replace `sendOtpEmail()` in
+`lib/email.ts` — hashing, expiry (10 min), attempt limits (5) and the
+session cookie all stay untouched. The email's look is `otpEmailHtml()`
+in the same file (table-based, inline-styled, Bazaar Warmth colors).

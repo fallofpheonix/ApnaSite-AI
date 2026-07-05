@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { OtpDeliveryUnavailableError, isValidEmail, requestOtp } from "@/lib/auth";
+import {
+  OtpDeliveryUnavailableError,
+  OtpSendFailedError,
+  isValidEmail,
+  otpDeliveryMode,
+  requestOtp,
+} from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
@@ -36,13 +42,19 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
+    if (err instanceof OtpSendFailedError) {
+      return NextResponse.json(
+        { error: "We couldn't send the code just now. Please try again." },
+        { status: 502 }
+      );
+    }
     throw err;
   }
 
   return NextResponse.json({
     ok: true,
     message:
-      process.env.NODE_ENV === "production" && process.env.ALLOW_CONSOLE_OTP_IN_PRODUCTION !== "true"
+      otpDeliveryMode() === "email"
         ? "We've sent a 6-digit code to your email."
         : "Dev mode: your 6-digit code was printed in the server console (the terminal running `npm run dev`).",
   });

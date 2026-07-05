@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
 import type { NextRequest, NextResponse } from "next/server";
 import { prisma } from "./db";
+import { emailConfigured, sendOtpEmail } from "./email";
 
 export const SESSION_COOKIE = "vox_session";
 const OTP_TTL_MS = 10 * 60 * 1000; // codes are valid for 10 minutes
@@ -13,6 +14,29 @@ export class OtpDeliveryUnavailableError extends Error {
   }
 }
 
+export class OtpSendFailedError extends Error {
+  constructor() {
+    super("OTP email could not be sent.");
+  }
+}
+
+export type OtpDeliveryMode = "email" | "console" | "unavailable";
+
+/** How login codes reach the user on this server:
+ *  - "email"       RESEND_API_KEY is set → real email
+ *  - "console"     dev (or explicitly allowed) → server console
+ *  - "unavailable" production without a provider → fail closed */
+export function otpDeliveryMode(): OtpDeliveryMode {
+  if (emailConfigured()) return "email";
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_CONSOLE_OTP_IN_PRODUCTION === "true"
+  ) {
+    return "console";
+  }
+  return "unavailable";
+}
+
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -21,19 +45,20 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-/** Creates a 6-digit login code for this email and (in dev) prints it to the
- * server console. Wiring up a real email provider replaces just the console
- * log at the bottom - everything else stays the same. */
+/** Creates a 6-digit login code for this email and delivers it per
+ * otpDeliveryMode(): Resend email when configured, server console in dev,
+ * fail-closed in production without a provider. */
 export async function requestOtp(email: string): Promise<void> {
-  const canLogCode =
-    process.env.NODE_ENV !== "production" || process.env.ALLOW_CONSOLE_OTP_IN_PRODUCTION === "true";
-  if (!canLogCode) {
+  const mode = otpDeliveryMode();
+  if (mode === "unavailable") {
     throw new OtpDeliveryUnavailableError();
   }
 
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
 
   // One outstanding code per email: a new request invalidates older codes.
+  // Stored before sending — a failed send leaves a code the user never saw,
+  // which the next request simply replaces.
   await prisma.otpCode.deleteMany({ where: { email } });
   await prisma.otpCode.create({
     data: {
@@ -43,8 +68,18 @@ export async function requestOtp(email: string): Promise<void> {
     },
   });
 
-  // DEV MODE: no email provider yet, so the code goes to the server console.
-  console.log(`\n  [ApnaSite login code] ${email}  →  ${code}\n`);
+  if (mode === "email") {
+    try {
+      await sendOtpEmail(email, code);
+    } catch (err) {
+      // The real provider error stays server-side; the user gets a retry.
+      console.error("OTP email send failed:", err);
+      throw new OtpSendFailedError();
+    }
+  } else {
+    // DEV MODE: no email provider, so the code goes to the server console.
+    console.log(`\n  [ApnaSite login code] ${email}  →  ${code}\n`);
+  }
 }
 
 export type VerifyResult =

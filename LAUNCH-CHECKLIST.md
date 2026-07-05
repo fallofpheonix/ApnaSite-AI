@@ -24,14 +24,16 @@ sample content.
   mapping and error paths. (This also unblocks the parked refinement-chat
   feature, but that's post-launch.)
 
-### 2. Swap console-OTP for real email — [Both] · ~2h  ← hard blocker
-- **[You]** Create a Resend account (free: 100 emails/day), verify your
-  sending domain (needs №3 first, or use their test domain to start)
-  (30 min).
-- **[Code]** The recipe is already written: CUSTOMIZING.md §8 — replace one
-  console.log in `lib/auth.ts`, update the dev-mode message in
-  `app/api/auth/request-otp/route.ts`, add `RESEND_API_KEY` (1–2h with
-  testing).
+### 2. Swap console-OTP for real email — [You] · ~45 min  ← hard blocker
+**Code done** ✅ — Resend integration is live in `lib/auth.ts`/`lib/email.ts`
+and env-gated: set `RESEND_API_KEY` and codes go out as branded emails;
+unset, dev keeps console codes and production stays fail-closed.
+Remaining is account work:
+- Create a Resend account (free: 100 emails/day), verify your sending
+  domain — SPF/DKIM steps are in DEPLOY.md §"Email OTP" (needs №3 first,
+  or start with their test sender, which only delivers to your own inbox).
+- Set `RESEND_API_KEY` + `EMAIL_FROM` in the host env, request a real
+  code on the live URL, check it lands (and check spam the first time).
 
 ### 3. Domain — [You] · ~1h
 Buy the domain (₹800–1500/yr), decide the public name. Needed by №2
