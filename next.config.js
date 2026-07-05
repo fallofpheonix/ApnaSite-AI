@@ -3,13 +3,16 @@
 //   fonts.googleapis.com / fonts.gstatic.com — published-site typography
 //   checkout.razorpay.com / api.razorpay.com — Razorpay Checkout (script,
 //     its iframe, and its API calls); lumberjack.razorpay.com is its
-//     telemetry endpoint (checkout errors without it)
+//     telemetry endpoint (checkout errors without it);
+//     cdn.razorpay.com — risk-detection bundle checkout.js injects into the
+//     parent page (verified via headless probe: checkout opens without it,
+//     but the script is blocked and fraud detection silently disabled)
 // 'unsafe-inline' script-src is required by Next's hydration bootstrap
 // (nonce-based CSP is a later refinement); inline styles are used by the
 // theme system on published pages.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com",
+  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
