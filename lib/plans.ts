@@ -35,7 +35,7 @@ export const PLANS: Record<Plan["key"], Plan> = {
     priceInr: 199,
     maxPublishedSites: 5,
     showBadge: false,
-    perks: ["Up to 5 published sites", "No ApnaSite badge", "Priority support (email)"],
+    perks: ["Up to 5 published sites", "No ApnaSite badge", "Email/WhatsApp support"],
   },
 };
 

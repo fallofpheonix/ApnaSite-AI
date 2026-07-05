@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import AppFooter from "@/components/AppFooter";
 import AppHeader from "@/components/AppHeader";
 import PageHeader from "@/components/PageHeader";
+import { SupportNote } from "@/components/SupportContext";
 import { useAuthUser } from "@/components/useAuthUser";
 
 interface PlanInfo {
@@ -106,7 +107,7 @@ export default function BillingPage() {
             await load();
           } catch {
             setError(
-              "Payment went through, but we couldn't confirm it just now. Refresh this page in a minute — your plan will update."
+              "Payment went through, but we couldn't confirm it just now. Refresh this page in a minute — your plan will update. If it doesn't, your money is safe and we'll fix it."
             );
           }
         },
@@ -134,6 +135,7 @@ export default function BillingPage() {
         {error && (
           <div className="mt-4 rounded-xl border border-brick/20 bg-brick/10 px-5 py-3 text-sm text-brick">
             {error}
+            <SupportNote />
           </div>
         )}
 

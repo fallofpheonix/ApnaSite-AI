@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LegalPage from "@/components/LegalPage";
+import { SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Terms of Service — ApnaSite AI" };
 
@@ -53,7 +54,14 @@ export default function TermsPage() {
 
       <h2>Contact</h2>
       <p>
-        Questions about these terms: <strong>[contact email — to be added]</strong>
+        Questions about these terms:{" "}
+        {SUPPORT_EMAIL ? (
+          <strong>
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+          </strong>
+        ) : (
+          <strong>[contact email — to be added]</strong>
+        )}
       </p>
     </LegalPage>
   );

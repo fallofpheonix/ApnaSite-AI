@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LegalPage from "@/components/LegalPage";
+import { SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Privacy Policy — ApnaSite AI" };
 
@@ -57,7 +58,14 @@ export default function PrivacyPage() {
 
       <h2>Contact</h2>
       <p>
-        Privacy questions: <strong>[contact email — to be added]</strong>
+        Privacy questions:{" "}
+        {SUPPORT_EMAIL ? (
+          <strong>
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+          </strong>
+        ) : (
+          <strong>[contact email — to be added]</strong>
+        )}
       </p>
     </LegalPage>
   );

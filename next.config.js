@@ -22,6 +22,11 @@ const csp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+  // Violations land in /api/client-errors and show up in the host logs.
+  // report-uri is the legacy directive, report-to the modern one (paired with
+  // the Reporting-Endpoints header below); browsers use whichever they know.
+  "report-uri /api/client-errors",
+  "report-to csp",
 ].join("; ");
 
 const securityHeaders = [
@@ -29,7 +34,10 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   ...(process.env.NODE_ENV === "production"
-    ? [{ key: "Content-Security-Policy", value: csp }]
+    ? [
+        { key: "Content-Security-Policy", value: csp },
+        { key: "Reporting-Endpoints", value: 'csp="/api/client-errors"' },
+      ]
     : []),
 ];
 
