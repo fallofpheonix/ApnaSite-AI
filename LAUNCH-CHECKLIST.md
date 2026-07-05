@@ -89,8 +89,9 @@ first (`CUSTOMIZING.md §6` explains the three-request flow).
 ### 9. Backups + basic monitoring — [Both] · ~1h
 Neon has point-in-time restore built in (check it's on); VPS = the cron
 line in DEPLOY.md §6. Add a free uptime ping (e.g. UptimeRobot) on `/`
-and `/s/demo-bakery`, and check host error logs after day 1. **[Code]**
-optional: a `/api/health` route if the pinger needs one.
+and `/s/demo-bakery`, and check host error logs after day 1. ~~**[Code]**
+optional: a `/api/health` route if the pinger needs one.~~ ✅ Done —
+`/api/health` exists; point the pinger at it.
 
 ## Phase 4 — first 10 users
 
@@ -117,5 +118,18 @@ in week 1.
 
 - Refinement chat (parked on №1's key, post-launch feature)
 - Custom domains per shop, analytics, email marketing
-- Swapping in-memory rate limiting for Redis (single instance is fine at
-  this scale; revisit past ~1000 users or multi-instance)
+
+## Deferred infrastructure — and the trigger that un-defers each
+
+Skipped on purpose; each has a concrete signal that says "now". Until the
+signal appears, adding these is pure overhead.
+
+- **Postgres** — the moment `SQLITE_BUSY` shows up in the logs (write
+  contention has outgrown SQLite). One-word provider switch, see №4.
+- **Redis (rate limiting / sessions)** — the moment the app runs on more
+  than one instance; in-memory state is correct until then.
+- **CDN / object storage for uploads** — when deploying to a serverless
+  host (no persistent disk — Vercel Blob diff is in DEPLOY.md) or at the
+  first traffic spike that makes `./uploads` the bottleneck.
+- **Error/uptime monitoring (Sentry-class)** — at the first paying user;
+  before that, the UptimeRobot ping (№9) plus host logs are enough.
