@@ -8,7 +8,7 @@ import ThemeSwitcher from "@/components/ThemeSwitcher";
 import UpgradeSheet from "@/components/UpgradeSheet";
 import AppFooter from "@/components/AppFooter";
 import { useAuthUser } from "@/components/useAuthUser";
-import type { Language, StorefrontData } from "@/lib/types";
+import { ensureProductIds, type Language, type StorefrontData } from "@/lib/types";
 
 type Stage = "capture" | "loading" | "preview" | "published";
 
@@ -38,9 +38,15 @@ export default function Home() {
         // user dismissed the share sheet — not an error
       }
     } else {
-      await navigator.clipboard.writeText(url);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      } catch {
+        // Clipboard blocked (permissions policy, insecure context). The live
+        // link is already on screen — point at it instead of failing silently.
+        setError("Couldn't copy automatically — long-press or right-click the link above to copy it.");
+      }
     }
   };
 
@@ -60,7 +66,7 @@ export default function Home() {
         return;
       }
       setSiteId(json.site.id);
-      setData(json.site.data);
+      setData(ensureProductIds(json.site.data));
       setStage("preview");
     })();
   }, []);
@@ -86,7 +92,7 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(json.error || "Failed to generate your site.");
       }
-      setData(json.data);
+      setData(ensureProductIds(json.data));
       setSampleMode(Boolean(json.sampleMode));
       setSiteId(null); // fresh generation = new, unsaved site
       setStage("preview");

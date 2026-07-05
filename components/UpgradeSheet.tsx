@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 // Friendly publish-limit prompt: bottom sheet on phones (thumb-reachable),
 // centered dialog from sm: up. Shown when the API returns
 // code: "publish_limit_reached" — never for generic errors.
@@ -11,6 +13,24 @@ interface UpgradeSheetProps {
 }
 
 export default function UpgradeSheet({ open, message, onClose }: UpgradeSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Modal behavior: focus moves into the sheet on open, Escape closes it,
+  // and focus returns to whatever opened it (the Publish button) on close.
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement as HTMLElement | null;
+    sheetRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      opener?.focus();
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
@@ -22,10 +42,12 @@ export default function UpgradeSheet({ open, message, onClose }: UpgradeSheetPro
         className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]"
       />
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="upgrade-title"
-        className="stage-enter relative w-full rounded-t-3xl bg-card p-6 pb-8 shadow-xl sm:max-w-md sm:rounded-3xl sm:pb-6"
+        tabIndex={-1}
+        className="stage-enter relative w-full rounded-t-3xl bg-card p-6 pb-8 shadow-xl outline-none sm:max-w-md sm:rounded-3xl sm:pb-6"
       >
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-ink/15 sm:hidden" />
         <p className="text-3xl" aria-hidden>

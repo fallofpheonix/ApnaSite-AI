@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { StorefrontData, Product } from "@/lib/types";
-import { scriptLangFor } from "@/lib/types";
+import { newProductId, scriptLangFor } from "@/lib/types";
 import { themeForSite } from "@/lib/theme";
 import { resolveFontStack } from "@/lib/fonts";
 import EditableText from "./EditableText";
@@ -33,7 +33,10 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
   const addProduct = () => {
     onChange({
       ...data,
-      products: [...data.products, { name: "New item", description: "Describe it here", price: null }],
+      products: [
+        ...data.products,
+        { id: newProductId(), name: "New item", description: "Describe it here", price: null },
+      ],
     });
   };
 
@@ -141,7 +144,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {data.products.map((product, i) => (
             <div
-              key={i}
+              key={product.id ?? i}
               className="relative rounded-2xl border p-5 transition-shadow hover:shadow-md"
               style={{ backgroundColor: theme.cardBg, borderColor: theme.border }}
             >

@@ -1,5 +1,14 @@
 export type Language = "en" | "hi" | "hinglish";
 
+/** Longest business description we send to the AI — enforced in the capture
+ * UI (live counter) and again in /api/generate. Keeps a single tap from
+ * becoming an unbounded token bill. */
+export const MAX_DESCRIPTION_LENGTH = 2000;
+
+/** Hard cap on sites (drafts + published) per account — an abuse valve, far
+ * above anything a real shop owner needs. */
+export const MAX_SITES_PER_USER = 25;
+
 export const LANGUAGE_LABELS: Record<Language, string> = {
   en: "English",
   hi: "हिंदी",
@@ -14,6 +23,9 @@ export function scriptLangFor(language: Language): "hi" | "en" {
 }
 
 export interface Product {
+  /** Client-generated stable key for editor list rendering. Optional —
+   * AI/sample output has no ids; the editor falls back to index keys. */
+  id?: string;
   name: string;
   description: string;
   price: string | null;
@@ -39,6 +51,22 @@ export interface StorefrontData {
   whatsapp: string | null;
   email: string | null;
   language: Language;
+}
+
+/** Stable list key for editor rendering. randomUUID needs a secure context,
+ * so fall back to a plain random token (http over LAN, old WebViews). */
+export function newProductId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12);
+}
+
+/** AI/sample/legacy-saved products carry no ids — assign them once, when data
+ * enters the editor, so React keys stay stable across edits and removals. */
+export function ensureProductIds(data: StorefrontData): StorefrontData {
+  if (data.products.every((p) => p.id)) return data;
+  return {
+    ...data,
+    products: data.products.map((p) => (p.id ? p : { ...p, id: newProductId() })),
+  };
 }
 
 const MAX_TEXT = 2000;
@@ -82,6 +110,7 @@ export function validStorefront(data: unknown): data is StorefrontData {
       (p) =>
         p &&
         typeof p === "object" &&
+        ((p as Product).id === undefined || isString((p as Product).id, 64)) &&
         isString((p as Product).name, MAX_SHORT_TEXT) &&
         (p as Product).name.trim().length > 0 &&
         isString((p as Product).description) &&

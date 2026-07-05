@@ -39,6 +39,22 @@ export default function EditableText({
       onBlur={(e: React.FocusEvent<HTMLElement>) => {
         onChange(e.currentTarget.innerText.trim());
       }}
+      onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
+        // Only paragraph fields are multi-line; everywhere else Enter would
+        // inject a line break into a heading/pill/price.
+        if (e.key === "Enter" && as !== "p") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      onPaste={(e: React.ClipboardEvent<HTMLElement>) => {
+        // contentEditable pastes rich HTML by default — insert plain text,
+        // and keep single-line fields single-line.
+        e.preventDefault();
+        let text = e.clipboardData.getData("text/plain");
+        if (as !== "p") text = text.replace(/\s*\r?\n\s*/g, " ");
+        document.execCommand("insertText", false, text);
+      }}
     />
   );
 }

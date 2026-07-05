@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LANGUAGE_LABELS, type Language } from "@/lib/types";
+import { LANGUAGE_LABELS, MAX_DESCRIPTION_LENGTH, type Language } from "@/lib/types";
 
 interface VoiceTextCaptureProps {
   onSubmit: (description: string, language: Language) => void;
@@ -41,6 +41,9 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Lives in a ref (not the effect closure) so each new recording starts
+  // from a clean transcript instead of appending to the previous one.
+  const finalTranscriptRef = useRef("");
 
   useEffect(() => {
     const SpeechRecognitionCtor =
@@ -53,19 +56,17 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
     recognition.interimResults = true;
     recognitionRef.current = recognition;
 
-    let finalTranscript = "";
-
     recognition.onresult = (event: SpeechRecognitionResultEvent) => {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          finalTranscript += result[0].transcript + " ";
+          finalTranscriptRef.current += result[0].transcript + " ";
         } else {
           interim += result[0].transcript;
         }
       }
-      setText((finalTranscript + interim).trim());
+      setText((finalTranscriptRef.current + interim).trim());
     };
 
     recognition.onerror = () => {
@@ -110,9 +111,15 @@ export default function VoiceTextCapture({ onSubmit, loading }: VoiceTextCapture
       setIsListening(false);
     } else {
       recognitionRef.current.lang = speechLangFor(language);
+      finalTranscriptRef.current = "";
       setText("");
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch {
+        // Rapid double-tap: start() throws InvalidStateError if the previous
+        // session hasn't fully ended. The mic simply stays off; tap again.
+      }
     }
   };
 
