@@ -82,7 +82,12 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
   // Social-preview tags so a link shared on WhatsApp shows the shop name,
   // description and (when available) the first product photo.
   const description = metaDescription(data);
-  const origin = options.pageUrl ? new URL(options.pageUrl).origin : null;
+  let origin: string | null = null;
+  try {
+    origin = options.pageUrl ? new URL(options.pageUrl).origin : null;
+  } catch {
+    // Malformed pageUrl (odd proxy header) — skip absolute og tags, render on.
+  }
   const firstPhoto = data.products.map((p) => safeImageSrc(p.image)).find(Boolean);
   const ogImage = firstPhoto && origin ? new URL(firstPhoto, origin).href : null;
   const ogTags = [

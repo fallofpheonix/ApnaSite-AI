@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { validStorefront } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -50,6 +51,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const result = await ownedSite(req, id);
   if ("error" in result) return result.error;
+
+  // Writes are cheap but not free (JSON validation + db) — bound them.
+  const limited = rateLimit(`sites-write:ip:${clientIp(req)}`, 120, 5 * 60 * 1000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "Too many saves. Give it a few seconds." }, { status: 429 });
+  }
 
   let data: unknown;
   try {

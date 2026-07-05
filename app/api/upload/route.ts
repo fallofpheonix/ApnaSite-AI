@@ -80,8 +80,17 @@ export async function POST(req: NextRequest) {
 
   // Random server-chosen name: never trust the client filename.
   const name = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
-  await mkdir(UPLOADS_DIR, { recursive: true });
-  await writeFile(path.join(UPLOADS_DIR, name), buf);
+  try {
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    await writeFile(path.join(UPLOADS_DIR, name), buf);
+  } catch (err) {
+    // Disk full, read-only fs (serverless!), bad UPLOADS_DIR — fail honestly.
+    console.error("Photo write failed:", err);
+    return NextResponse.json(
+      { error: "Couldn't save the photo on the server. Try again or use a smaller photo." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ url: `/uploads/${name}` }, { status: 201 });
 }

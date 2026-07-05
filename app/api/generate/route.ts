@@ -4,7 +4,7 @@ import { parseShopDescription, AIGenerationError } from "@/lib/anthropic";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { sampleStorefront } from "@/lib/sampleData";
-import type { Language } from "@/lib/types";
+import { MAX_DESCRIPTION_LENGTH, type Language } from "@/lib/types";
 
 const MIN_WORD_COUNT = 4;
 const VALID_LANGUAGES: Language[] = ["en", "hi", "hinglish"];
@@ -46,6 +46,15 @@ export async function POST(req: NextRequest) {
   if (!description) {
     return NextResponse.json(
       { error: "Please describe your business first." },
+      { status: 400 }
+    );
+  }
+
+  if (description.length > MAX_DESCRIPTION_LENGTH) {
+    return NextResponse.json(
+      {
+        error: `That description is too long (over ${MAX_DESCRIPTION_LENGTH} characters). Trim it to the essentials — name, what you sell, hours, contact.`,
+      },
       { status: 400 }
     );
   }

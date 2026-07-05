@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { validStorefront } from "@/lib/types";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
+import { MAX_SITES_PER_USER, validStorefront } from "@/lib/types";
 
 // GET /api/sites — the logged-in user's sites (for the dashboard).
 export async function GET(req: NextRequest) {
@@ -20,6 +21,23 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "Please log in." }, { status: 401 });
+
+  const byUser = rateLimit(`sites:user:${user.id}`, 30, 5 * 60 * 1000);
+  const byIp = rateLimit(`sites:ip:${clientIp(req)}`, 60, 5 * 60 * 1000);
+  if (!byUser.ok || !byIp.ok) {
+    return NextResponse.json({ error: "Too many requests. Slow down a little." }, { status: 429 });
+  }
+
+  const siteCount = await prisma.site.count({ where: { userId: user.id } });
+  if (siteCount >= MAX_SITES_PER_USER) {
+    return NextResponse.json(
+      {
+        error: `You've reached the limit of ${MAX_SITES_PER_USER} sites. Delete one you no longer need first.`,
+        code: "site_limit_reached",
+      },
+      { status: 400 }
+    );
+  }
 
   let data: unknown;
   try {

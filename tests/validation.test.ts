@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { POST as createSite } from "@/app/api/sites/route";
-import { jsonReq, userWithSession, validData } from "./helpers";
+import { MAX_SITES_PER_USER } from "@/lib/types";
+import { jsonReq, prisma, userWithSession, validData } from "./helpers";
 
 async function post(cookie: string, data: unknown) {
   return createSite(jsonReq("/api/sites", { cookie, body: { data } }));
@@ -65,5 +66,20 @@ describe("storefront data validation on save", () => {
     const { cookie } = await userWithSession("val-lang");
     const res = await post(cookie, validData({ language: "fr" as never }));
     expect(res.status).toBe(400);
+  });
+
+  it("rejects site creation past the per-account cap", async () => {
+    const { user, cookie } = await userWithSession("val-sitecap");
+    await prisma.site.createMany({
+      data: Array.from({ length: MAX_SITES_PER_USER }, (_, i) => ({
+        userId: user.id,
+        name: `Site ${i}`,
+        data: JSON.stringify(validData()),
+      })),
+    });
+
+    const res = await post(cookie, validData());
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("site_limit_reached");
   });
 });
