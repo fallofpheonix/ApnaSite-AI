@@ -9,6 +9,7 @@ import UpgradeSheet from "@/components/UpgradeSheet";
 import AppFooter from "@/components/AppFooter";
 import { useAuthUser } from "@/components/useAuthUser";
 import { ensureProductIds, type Language, type StorefrontData } from "@/lib/types";
+import ParticleBackground from "@/components/ParticleBackground";
 
 type Stage = "capture" | "loading" | "preview" | "published";
 
@@ -178,7 +179,8 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-paper">
+    <main className="min-h-screen bg-paper relative">
+      <ParticleBackground />
       <AppHeader user={user} onLogout={logout} />
 
       {stage === "capture" || stage === "loading" ? (
