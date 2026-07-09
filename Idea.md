@@ -201,3 +201,24 @@ Create a professional business website in minutes using only your voice or simpl
 ## One-Line Pitch
 
 **"Describe your business. Our AI builds, designs, and publishes your professional website in minutes."**
+
+---
+
+## Phased Rollout & Architecture Strategy
+
+### Phase 1: Modular Component Assembly
+Instead of generating raw HTML/CSS, the AI will assemble pre-built, highly optimized React components (e.g., Heroes, Contact Forms, Footers). When a user requests a site, the AI orchestrator selects the necessary components and populates them with data, guaranteeing a stable, syntax-free, and responsive foundation.
+
+### Phase 2: Granular Editing & Templates
+- **Block-Level Editing:** Users can highlight specific sections and prompt the AI to swap or modify just that component (e.g., "Change this grid to a carousel") without risking the rest of the site.
+- **Cheaper Templates:** Provide a library of ready-made templates. Choosing and slightly modifying a template will be significantly cheaper than a fully custom AI-generated build.
+- **Claude Optimization:** Integrate Claude's API to leverage advanced designing, coding, and debugging skills to continuously optimize and refine the generated code under the hood.
+
+### Phase 3: Hosting, Exporting & Monetization
+Once the user is satisfied, they have two options:
+1. **Platform Hosting (SaaS):** Host seamlessly on ApnaSite (subdomain for free/basic, custom domain for premium).
+2. **Code Export (One-Time Buyout):** Allow users to download the source code to host it themselves.
+   - **Dynamic Pricing:** The cost to download is calculated based on a base fee + extra charges for any premium components or features used in the build.
+   
+### Additional Integrations
+- **Email/Gmail Notifications:** Connect to user email accounts to send progress updates, lead notifications, and performance reports directly to their inbox.
