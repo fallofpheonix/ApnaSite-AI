@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { AuthUser } from "./useAuthUser";
+import ThemeToggle from "./ThemeToggle";
 
 interface AppHeaderProps {
   user: AuthUser | null | undefined;
@@ -15,10 +16,11 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
         ApnaSite AI
       </Link>
       <nav className="flex items-center gap-4 text-sm">
+        <ThemeToggle />
         {user ? (
           <>
             <a href="/dashboard" className="px-1 py-2.5 font-medium text-teal hover:text-teal-deep">
-              My Sites
+              History
             </a>
             <span className="hidden text-ink-soft sm:inline">{user.email}</span>
             <button

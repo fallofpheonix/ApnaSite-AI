@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-paper: #FBF1DE;
+  --color-ink: #2B211A;
+  --color-ink-soft: #5A4A3A;
+  --color-marigold: #E8A33D;
+  --color-marigold-deep: #C97F1E;
+  --color-marigold-soft: #F6DCA8;
+  --color-teal: #1E5C58;
+  --color-teal-deep: #123C39;
+  --color-brick: #A8402B;
+  --color-card: #FFFBF2;
+}
+
+.dark {
+  --color-paper: #1A1A1A;
+  --color-ink: #F0F0F0;
+  --color-ink-soft: #A0A0A0;
+  --color-marigold: #C97F1E;
+  --color-marigold-deep: #E8A33D;
+  --color-marigold-soft: #5C4A3A;
+  --color-teal: #4CC4BC;
+  --color-teal-deep: #80E5DF;
+  --color-brick: #F4725C;
+  --color-card: #252525;
+}
+
 html {
   scroll-behavior: smooth;
 }

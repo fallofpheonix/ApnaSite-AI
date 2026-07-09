@@ -49,7 +49,7 @@ export default function ParticleBackground() {
 
     const addControl = (id: string, label: string, min: number, max: number, initialValue: number) => {
       if (controls[id as keyof typeof controls] === undefined) {
-        // @ts-ignore
+        // @ts-expect-error adding arbitrary keys
         controls[id] = initialValue;
       }
       return controls[id as keyof typeof controls];
@@ -57,6 +57,7 @@ export default function ParticleBackground() {
 
     const setInfo = (title: string, desc: string) => {
       // Stub
+      void title; void desc;
     };
 
     const target = new THREE.Vector3();
@@ -130,11 +131,12 @@ export default function ParticleBackground() {
     
     window.addEventListener("resize", handleResize);
 
+    const mountNode = mountRef.current;
     return () => {
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animationId);
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (mountNode) {
+        mountNode.removeChild(renderer.domElement);
       }
       renderer.dispose();
       geometry.dispose();

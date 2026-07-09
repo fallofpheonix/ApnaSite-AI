@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
       <div className="mx-auto max-w-3xl px-4 py-12">
         <PageHeader
-          title="My Sites"
+          title="History"
           subtitle={
             sites === null
               ? "Everything you've created. Edit, publish, or take a site offline."

@@ -5,6 +5,8 @@ import ErrorBeacon from "@/components/ErrorBeacon";
 import { SupportProvider } from "@/components/SupportContext";
 import "./globals.css";
 
+import { ThemeProvider } from "@/components/ThemeProvider";
+
 export const metadata: Metadata = {
   title: "ApnaSite AI",
   description: "Describe your business. We build your website.",
@@ -16,12 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={fontVariableClassNames}>
+    <html lang="en" className={fontVariableClassNames} suppressHydrationWarning>
       <body className={karla.className}>
-        <ErrorBeacon />
-        <SupportProvider email={SUPPORT_EMAIL} whatsapp={SUPPORT_WHATSAPP}>
-          {children}
-        </SupportProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ErrorBeacon />
+          <SupportProvider email={SUPPORT_EMAIL} whatsapp={SUPPORT_WHATSAPP}>
+            {children}
+          </SupportProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

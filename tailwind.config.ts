@@ -5,25 +5,26 @@ const config: Config = {
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        paper: "#FBF1DE",
+        paper: "var(--color-paper)",
         ink: {
-          DEFAULT: "#2B211A",
-          soft: "#5A4A3A",
+          DEFAULT: "var(--color-ink)",
+          soft: "var(--color-ink-soft)",
         },
         marigold: {
-          DEFAULT: "#E8A33D",
-          deep: "#C97F1E",
-          soft: "#F6DCA8",
+          DEFAULT: "var(--color-marigold)",
+          deep: "var(--color-marigold-deep)",
+          soft: "var(--color-marigold-soft)",
         },
         teal: {
-          DEFAULT: "#1E5C58",
-          deep: "#123C39",
+          DEFAULT: "var(--color-teal)",
+          deep: "var(--color-teal-deep)",
         },
-        brick: "#A8402B",
-        card: "#FFFBF2",
+        brick: "var(--color-brick)",
+        card: "var(--color-card)",
       },
       fontFamily: {
         display: ["var(--font-newsreader)", "var(--font-noto-serif-deva)", "serif"],
