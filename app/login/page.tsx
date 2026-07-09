@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasAgreed, setHasAgreed] = useState(false);
 
   const requestCode = async () => {
     setBusy(true);
@@ -59,7 +60,31 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="bg-jali flex min-h-screen flex-col items-center justify-center bg-paper px-6 py-16">
+    <main className="bg-jali flex min-h-screen flex-col items-center justify-center bg-paper px-6 py-16 relative">
+      {!hasAgreed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-ink/10 bg-card p-6 shadow-xl">
+            <h2 className="font-display text-2xl font-semibold text-ink">Rules & Regulations</h2>
+            <div className="mt-4 max-h-60 overflow-y-auto pr-2 text-sm text-ink-soft">
+              <p className="mb-2">
+                By signing in to ApnaSite AI, you agree to our Terms of Service and Privacy Policy.
+              </p>
+              <ul className="list-inside list-disc space-y-1">
+                <li>You will not use the service for any illegal activities.</li>
+                <li>You retain ownership of your content.</li>
+                <li>We reserve the right to suspend accounts violating our policies.</li>
+                <li>AI-generated content is provided as-is without warranties.</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => setHasAgreed(true)}
+              className="mt-6 w-full rounded-xl bg-teal py-3 font-semibold text-paper transition-colors hover:bg-teal-deep"
+            >
+              I Agree
+            </button>
+          </div>
+        </div>
+      )}
       <div className="stage-enter w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="font-display text-4xl italic text-ink">

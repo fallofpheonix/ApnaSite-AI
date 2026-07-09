@@ -168,7 +168,11 @@ Create a professional business website in minutes using only your voice or simpl
 
 **AI**
 
-- GPT-based LLM
+- **Multi-LLM Routing Engine:**
+  - *Claude:* UI/UX design, layout construction, and deep debugging.
+  - *GPT-4:* Logical structuring, backend logic generation, and complex data modeling.
+  - *Gemini 1.5:* Fast content generation, high-speed reasoning, and real-time tweaks.
+- **Auto-Scaling & Load Balancing:** The engine automatically switches between models based on real-time API traffic limits, use-case requirements, and latency metrics to ensure 100% uptime and speed.
 - Speech-to-Text
 - Text-to-Speech
 - Image Generation
