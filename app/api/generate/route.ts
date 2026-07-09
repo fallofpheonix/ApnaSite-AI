@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { parseShopDescription, AIGenerationError } from "@/lib/anthropic";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
-import { sampleStorefront } from "@/lib/sampleData";
 import { MAX_DESCRIPTION_LENGTH, type Language } from "@/lib/types";
+import { enqueueGenerate } from "@/lib/worker";
+import { queueSize } from "@/lib/queue";
 
 const MIN_WORD_COUNT = 4;
 const VALID_LANGUAGES: Language[] = ["en", "hi", "hinglish"];
-
-function hasLiveApiKey(): boolean {
-  const key = process.env.ANTHROPIC_API_KEY;
-  return Boolean(key && key !== "your-api-key-here");
-}
+const MAX_QUEUE_SIZE = 50;
 
 export async function POST(req: NextRequest) {
   // Generation costs real money per call, so it's session-gated...
@@ -21,8 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please log in to generate a site." }, { status: 401 });
   }
 
-  // ...and rate-limited per user AND per IP (a user with many cookies still
-  // shares one IP bucket; a shared IP still gets per-user fairness).
+  // ...and rate-limited per user AND per IP
   const byUser = rateLimit(`generate:user:${user.id}`, 10, 5 * 60 * 1000);
   const byIp = rateLimit(`generate:ip:${clientIp(req)}`, 20, 5 * 60 * 1000);
   if (!byUser.ok || !byIp.ok) {
@@ -30,6 +24,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: `You're generating too fast. Try again in about ${retry} seconds.` },
       { status: 429, headers: { "Retry-After": String(retry) } }
+    );
+  }
+
+  // Don't accept more jobs if the queue is backed up
+  if (queueSize() >= MAX_QUEUE_SIZE) {
+    return NextResponse.json(
+      { error: "The AI is busy right now. Please try again in a moment." },
+      { status: 503 }
     );
   }
 
@@ -70,39 +72,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // No live API key yet → return hand-authored sample data so the rest of
-  // the product (edit, save, publish, public site) stays fully usable.
-  if (!hasLiveApiKey()) {
-    return NextResponse.json({ data: sampleStorefront(description, language), sampleMode: true });
-  }
+  // Push job to queue — returns instantly, no AI call blocks this request
+  const job = enqueueGenerate({ description, language, userId: user.id });
 
-  try {
-    const data = await parseShopDescription(description, language);
-    return NextResponse.json({ data });
-  } catch (err) {
-    if (err instanceof AIGenerationError) {
-      return NextResponse.json({ error: err.message }, { status: 422 });
+  // Return the job ID immediately. The client subscribes via SSE for progress.
+  return NextResponse.json(
+    { jobId: job.id },
+    {
+      status: 202, // Accepted — processing in background
+      headers: {
+        "Cache-Control": "no-store",
+      },
     }
-    if (err instanceof Anthropic.AuthenticationError) {
-      console.error("Generate route auth failure:", err);
-      return NextResponse.json(
-        {
-          error:
-            "The server's Anthropic API key was rejected. Check ANTHROPIC_API_KEY in .env.local.",
-        },
-        { status: 500 }
-      );
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      return NextResponse.json(
-        { error: "Too many requests right now. Please wait a moment and try again." },
-        { status: 429 }
-      );
-    }
-    console.error("Generate route failed:", err);
-    return NextResponse.json(
-      { error: "Something went wrong generating your site. Please try again." },
-      { status: 502 }
-    );
-  }
+  );
 }

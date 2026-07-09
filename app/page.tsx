@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import VoiceTextCapture from "@/components/VoiceTextCapture";
 import StorefrontPreview from "@/components/StorefrontPreview";
@@ -8,10 +9,11 @@ import ThemeSwitcher from "@/components/ThemeSwitcher";
 import UpgradeSheet from "@/components/UpgradeSheet";
 import AppFooter from "@/components/AppFooter";
 import { useAuthUser } from "@/components/useAuthUser";
-import { ensureProductIds, type Language, type StorefrontData } from "@/lib/types";
+import { ensureProductIds, validStorefront, type Language, type StorefrontData } from "@/lib/types";
 import ParticleBackground from "@/components/ParticleBackground";
 
 type Stage = "capture" | "loading" | "preview" | "published";
+const RECOVERY_KEY = "apnasite:draft:v1";
 
 export default function Home() {
   const { user, logout } = useAuthUser();
@@ -26,6 +28,17 @@ export default function Home() {
   const [publishing, setPublishing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState("");
+  const [generationJobId, setGenerationJobId] = useState<string | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Cleanup SSE on unmount
+  useEffect(() => {
+    return () => {
+      eventSourceRef.current?.close();
+    };
+  }, []);
 
   // Native share sheet on phones (WhatsApp, SMS, ...); copy-link on desktop
   // browsers that don't implement navigator.share.
@@ -44,8 +57,6 @@ export default function Home() {
         setShareCopied(true);
         setTimeout(() => setShareCopied(false), 2000);
       } catch {
-        // Clipboard blocked (permissions policy, insecure context). The live
-        // link is already on screen — point at it instead of failing silently.
         setError("Couldn't copy automatically — long-press or right-click the link above to copy it.");
       }
     }
@@ -54,7 +65,26 @@ export default function Home() {
   // Opened from the dashboard as /?site=<id> → load that site into the editor.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("site");
-    if (!id) return;
+    if (!id) {
+      queueMicrotask(() => {
+        try {
+          const recovered = JSON.parse(localStorage.getItem(RECOVERY_KEY) ?? "null") as {
+            data?: unknown;
+            siteId?: string | null;
+            sampleMode?: boolean;
+          } | null;
+          if (recovered && validStorefront(recovered.data)) {
+            setData(ensureProductIds(recovered.data));
+            setSiteId(typeof recovered.siteId === "string" ? recovered.siteId : null);
+            setSampleMode(Boolean(recovered.sampleMode));
+            setStage("preview");
+          }
+        } catch {
+          localStorage.removeItem(RECOVERY_KEY);
+        }
+      });
+      return;
+    }
     (async () => {
       const res = await fetch(`/api/sites/${id}`);
       if (res.status === 401) {
@@ -72,20 +102,34 @@ export default function Home() {
     })();
   }, []);
 
+  // Crash/network/navigation recovery for unsaved and in-progress edits.
+  useEffect(() => {
+    if (!data || (stage !== "preview" && stage !== "published")) return;
+    localStorage.setItem(
+      RECOVERY_KEY,
+      JSON.stringify({ data, siteId, sampleMode, savedAt: Date.now() })
+    );
+  }, [data, sampleMode, siteId, stage]);
+
   const handleGenerate = async (description: string, language: Language) => {
     if (user === null) {
       window.location.href = "/login?next=/";
       return;
     }
     setError(null);
+    setProgress(0);
+    setProgressMessage("Starting...");
     setStage("loading");
+
     try {
+      // Step 1: Submit job — returns instantly with jobId (no blocking)
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description, language }),
       });
       const json = await res.json();
+
       if (res.status === 401) {
         window.location.href = "/login?next=/";
         return;
@@ -93,14 +137,87 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(json.error || "Failed to generate your site.");
       }
-      setData(ensureProductIds(json.data));
-      setSampleMode(Boolean(json.sampleMode));
-      setSiteId(null); // fresh generation = new, unsaved site
-      setStage("preview");
+
+      const jobId: string = json.jobId;
+      setGenerationJobId(jobId);
+      setProgress(5);
+      setProgressMessage("Queued for generation...");
+
+      // Step 2: Subscribe to SSE for real-time progress
+      const eventSource = new EventSource(`/api/generate/${jobId}`);
+      eventSourceRef.current = eventSource;
+
+      let resolved = false;
+
+      eventSource.addEventListener("progress", (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          setProgress(payload.progress ?? 0);
+          setProgressMessage(payload.message ?? "");
+        } catch {
+          // malformed event — ignore
+        }
+      });
+
+      eventSource.addEventListener("completed", (e) => {
+        if (resolved) return;
+        resolved = true;
+        eventSource.close();
+        eventSourceRef.current = null;
+        setGenerationJobId(null);
+        try {
+          const payload = JSON.parse(e.data);
+          setData(ensureProductIds(payload.data));
+          setSampleMode(Boolean(payload.sampleMode));
+          setSiteId(null);
+          setStage("preview");
+        } catch {
+          setError("Failed to parse generation result.");
+          setStage("capture");
+        }
+      });
+
+      eventSource.addEventListener("failed", (e) => {
+        if (resolved) return;
+        resolved = true;
+        eventSource.close();
+        eventSourceRef.current = null;
+        setGenerationJobId(null);
+        try {
+          const payload = JSON.parse(e.data);
+          setError(payload.error || "Generation failed.");
+        } catch {
+          setError("Generation failed.");
+        }
+        setStage("capture");
+      });
+
+      eventSource.addEventListener("heartbeat", () => {
+        // keep-alive — no action needed
+      });
+
+      eventSource.onerror = () => {
+        if (resolved) return;
+        resolved = true;
+        eventSource.close();
+        eventSourceRef.current = null;
+        setError("Lost connection to the server. Please try again.");
+        setStage("capture");
+      };
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setStage("capture");
     }
+  };
+
+  const cancelGeneration = async () => {
+    if (!generationJobId) return;
+    await fetch(`/api/generate/${generationJobId}`, { method: "DELETE" });
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
+    setGenerationJobId(null);
+    setError("Generation cancelled.");
+    setStage("capture");
   };
 
   /** Creates the site on first save, updates it afterwards. Returns the site
@@ -152,7 +269,6 @@ export default function Home() {
       const res = await fetch(`/api/sites/${id}/publish`, { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
-        // Plan limit → friendly upgrade sheet, not an error banner.
         if (json.code === "publish_limit_reached") {
           setUpgradeMessage(json.error);
           return;
@@ -169,12 +285,17 @@ export default function Home() {
   };
 
   const startOver = () => {
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
     setData(null);
     setSiteId(null);
     setPublishedUrl(null);
     setError(null);
     setSampleMode(false);
+    setProgress(0);
+    setProgressMessage("");
     setStage("capture");
+    localStorage.removeItem(RECOVERY_KEY);
     window.history.replaceState(null, "", "/");
   };
 
@@ -206,9 +327,36 @@ export default function Home() {
             </div>
           )}
 
-          <div className="stage-enter" style={{ animationDelay: "0.08s" }}>
-            <VoiceTextCapture onSubmit={handleGenerate} loading={stage === "loading"} />
-          </div>
+          {stage === "loading" && (
+            <div className="w-full max-w-xl">
+              <div className="rounded-2xl border border-ink/10 bg-card p-8 shadow-sm">
+                <div className="text-center">
+                  <div className="mb-4 text-3xl">✨</div>
+                  <p className="text-sm font-medium text-ink">{progressMessage || "Working..."}</p>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink/5">
+                  <div
+                    className="h-full rounded-full bg-teal transition-all duration-500 ease-out"
+                    style={{ width: `${Math.max(progress, 2)}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-center text-xs text-ink-soft">{progress}%</p>
+                <button
+                  type="button"
+                  onClick={cancelGeneration}
+                  className="mx-auto mt-4 block min-h-[44px] rounded-xl border border-ink/15 px-5 py-2 text-sm font-medium text-ink"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {stage === "capture" && (
+            <div className="stage-enter" style={{ animationDelay: "0.08s" }}>
+              <VoiceTextCapture onSubmit={handleGenerate} loading={false} />
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -238,8 +386,6 @@ export default function Home() {
                 </p>
               )}
             </div>
-            {/* Full-width buttons on phones so Save/Publish are easy thumb
-                targets; compact inline row from sm: up. */}
             <div className="flex w-full flex-wrap gap-3 sm:w-auto">
               <button
                 onClick={startOver}
@@ -249,12 +395,12 @@ export default function Home() {
               </button>
               {stage === "published" && (
                 <>
-                  <a
+                  <Link
                     href="/dashboard"
                     className="flex min-h-[44px] items-center rounded-xl border border-ink/15 px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-ink/5"
                   >
                     My Sites
-                  </a>
+                  </Link>
                   <button
                     onClick={handleShare}
                     className="min-h-[44px] flex-1 rounded-xl bg-teal px-6 py-2 text-sm font-semibold text-paper shadow-sm transition-colors hover:bg-teal-deep sm:flex-none"

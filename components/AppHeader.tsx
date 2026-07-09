@@ -19,9 +19,9 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
         <ThemeToggle />
         {user ? (
           <>
-            <a href="/dashboard" className="px-1 py-2.5 font-medium text-teal hover:text-teal-deep">
+            <Link href="/dashboard" className="px-1 py-2.5 font-medium text-teal hover:text-teal-deep">
               History
-            </a>
+            </Link>
             <span className="hidden text-ink-soft sm:inline">{user.email}</span>
             <button
               type="button"
@@ -32,12 +32,12 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
             </button>
           </>
         ) : user === null ? (
-          <a
+          <Link
             href="/login"
             className="flex min-h-[40px] items-center rounded-lg bg-teal px-4 py-2 font-semibold text-paper transition-colors hover:bg-teal-deep"
           >
             Log in
-          </a>
+          </Link>
         ) : null /* undefined = still checking; render nothing to avoid a flash */}
       </nav>
     </header>

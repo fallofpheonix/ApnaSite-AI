@@ -29,10 +29,14 @@ export interface Product {
   name: string;
   description: string;
   price: string | null;
-  /** Path to an uploaded photo (e.g. "/uploads/abc.jpg"), or absent/null.
-   * Cards without a photo render as pure text cards — never a broken image
-   * or an empty placeholder box. */
+   /** Path to an uploaded photo (e.g. "/uploads/abc.jpg"), or absent/null.
+    * Cards without a photo render as pure text cards — never a broken image
+    * or an empty placeholder box. */
   image?: string | null;
+  /** Stock quantity for inventory tracking. null = not tracked. */
+  stock?: number | null;
+  /** SKU (Stock Keeping Unit) for inventory management. Optional. */
+  sku?: string | null;
 }
 
 export interface StorefrontData {
@@ -115,7 +119,9 @@ export function validStorefront(data: unknown): data is StorefrontData {
         (p as Product).name.trim().length > 0 &&
         isString((p as Product).description) &&
         isNullableString((p as Product).price, MAX_SHORT_TEXT) &&
-        isValidImage((p as Product).image)
+        isValidImage((p as Product).image) &&
+        ((p as Product).stock === undefined || (p as Product).stock === null || typeof (p as Product).stock === "number") &&
+        ((p as Product).sku === undefined || (p as Product).sku === null || isString((p as Product).sku, 100))
     )
   );
 }

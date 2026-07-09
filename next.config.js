@@ -37,6 +37,7 @@ const securityHeaders = [
     ? [
         { key: "Content-Security-Policy", value: csp },
         { key: "Reporting-Endpoints", value: 'csp="/api/client-errors"' },
+        { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
       ]
     : []),
 ];

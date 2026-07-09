@@ -1,7 +1,9 @@
 import { prisma } from "./db";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
+const MAX_SEQUENTIAL_SLUG_ATTEMPTS = 100;
 
 export function slugify(name: string): string {
   const base = name
@@ -27,9 +29,13 @@ export async function uniqueSlugFor(
 ): Promise<string> {
   const base = slugify(name);
   let candidate = base;
-  for (let i = 2; ; i++) {
+  for (let i = 2; i <= MAX_SEQUENTIAL_SLUG_ATTEMPTS; i++) {
     const existing = await db.site.findUnique({ where: { slug: candidate } });
     if (!existing || existing.id === excludeSiteId) return candidate;
     candidate = `${base}-${i}`;
   }
+
+  // Avoid an unbounded query loop for heavily contended names. The database's
+  // unique constraint remains the final concurrency guard at publish time.
+  return `${base}-${randomBytes(6).toString("hex")}`;
 }

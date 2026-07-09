@@ -35,7 +35,7 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
       ...data,
       products: [
         ...data.products,
-        { id: newProductId(), name: "New item", description: "Describe it here", price: null },
+        { id: newProductId(), name: "New item", description: "Describe it here", price: null, stock: null, sku: null },
       ],
     });
   };
@@ -161,6 +161,11 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
                 borderColor={theme.border}
                 onChange={(url) => updateProduct(i, { image: url })}
               />
+              {!product.image && (
+                <p className="mb-1 text-xs italic" style={{ color: theme.textMuted }}>
+                  Tip: Upload a photo or describe your product for AI image generation (coming soon)
+                </p>
+              )}
               <EditableText
                 value={product.name}
                 onChange={(v) => updateProduct(i, { name: v })}
@@ -185,6 +190,24 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
                 style={{ color: theme.accent }}
                 placeholder="Price (optional)"
               />
+              <div className="mt-2 flex gap-2">
+                <EditableText
+                  value={product.sku ?? ""}
+                  onChange={(v) => updateProduct(i, { sku: v || null })}
+                  as="span"
+                  className="text-xs"
+                  style={{ color: theme.textMuted }}
+                  placeholder="SKU (optional)"
+                />
+                <EditableText
+                  value={product.stock != null ? String(product.stock) : ""}
+                  onChange={(v) => updateProduct(i, { stock: v ? parseInt(v, 10) || null : null })}
+                  as="span"
+                  className="text-xs"
+                  style={{ color: theme.textMuted }}
+                  placeholder="Stock qty"
+                />
+              </div>
             </div>
           ))}
         </div>

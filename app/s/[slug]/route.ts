@@ -41,16 +41,34 @@ export async function GET(req: NextRequest, { params }: Params) {
     });
   }
 
+  // Load reviews for this site
+  const reviewRows = await prisma.review.findMany({
+    where: { siteId: site.id, approved: true },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { author: true, rating: true, comment: true, createdAt: true },
+  });
+  const reviews = reviewRows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+  }));
+
+  // Extract appointment services from products
+  const appointmentServices = data.products.map((p) => p.name);
+
   const ownerPlan = await planForUser(site.userId);
   const html = renderStorefrontHTML(data, {
     pageUrl: req.nextUrl.href,
     showBadge: ownerPlan.showBadge,
+    reviews,
+    appointmentServices,
+    enableOrders: data.products.some((p) => p.price),
   });
-  return new Response(html, {
+  const finalHtml = html.replace(/__SITE_ID__/g, site.id);
+  return new Response(finalHtml, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      // Small cache so repeat visits are fast but edits show up quickly.
-      "Cache-Control": "public, max-age=60",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
     },
   });
 }

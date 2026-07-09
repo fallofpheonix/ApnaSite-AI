@@ -151,6 +151,12 @@ export default function DashboardPage() {
                   >
                     Edit
                   </a>
+                  <a
+                    href={`/dashboard/${site.id}`}
+                    className="flex min-h-[44px] items-center rounded-lg border border-ink/15 px-4 py-2 font-medium text-ink transition-colors hover:bg-ink/5"
+                  >
+                    Manage
+                  </a>
                   {site.published ? (
                     <button
                       type="button"

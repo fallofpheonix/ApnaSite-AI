@@ -12,6 +12,18 @@ function esc(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+function jsString(value: string | null | undefined): string {
+  return JSON.stringify(value ?? "").replace(/</g, "\\u003c");
+}
+
+function priceAmount(price: string | null | undefined): number | null {
+  if (!price) return null;
+  const normalized = price.replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  if (!normalized) return null;
+  const amount = Number(normalized[0]);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
 const UPLOAD_PATH_RE = /^\/uploads\/[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
 
 function safeImageSrc(src: string | null | undefined): string | null {
@@ -52,12 +64,18 @@ function metaDescription(data: StorefrontData): string {
 }
 
 export interface RenderOptions {
-  /** Absolute URL of this page (for og:url and absolutizing og:image).
+  /** Absolute URL of this page (for og:url and absolutizing og-image).
    * Without it the og tags that need absolute URLs are omitted. */
   pageUrl?: string;
   /** Free-plan sites carry a small "Made with ApnaSite" footer badge linking
    * back to the app (see lib/plans.ts). Pro sites render no branding. */
   showBadge?: boolean;
+  /** Server-rendered reviews section. Each review must be approved. */
+  reviews?: Array<{ author: string; rating: number; comment: string; createdAt: string }>;
+  /** List of service names for the appointment booking form suggestions. */
+  appointmentServices?: string[];
+  /** Enable client-side order/cart functionality if products have prices. */
+  enableOrders?: boolean;
 }
 
 export function renderStorefrontHTML(data: StorefrontData, options: RenderOptions = {}): string {
@@ -69,12 +87,18 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
   const productsHTML = data.products
     .map((p) => {
       const image = safeImageSrc(p.image);
+      const amount = priceAmount(p.price);
+      const cartBtn =
+        options.enableOrders && amount
+          ? `<button class="add-to-cart-btn" data-name="${esc(p.name)}" data-price-label="${esc(p.price || "")}" data-price-amount="${amount}">Add to Cart</button>`
+          : "";
       return `
         <div class="product-card">
           ${image ? `<img class="product-photo" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy" />` : ""}
           <h3>${esc(p.name)}</h3>
           <p>${esc(p.description)}</p>
           ${p.price ? `<span class="price">${esc(p.price)}</span>` : ""}
+          ${cartBtn}
         </div>`;
     })
     .join("\n");
@@ -129,6 +153,9 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
   const whatsappLink = data.whatsapp ? waLink(data.whatsapp) : null;
   const phoneLink = data.phone ? telLink(data.phone) : null;
   const emailLink = data.email ? mailLink(data.email) : null;
+  const mapSrc = data.address
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(data.address)}&output=embed`
+    : null;
   const contactButtons = [
     whatsappLink
       ? `<a class="btn btn-primary" href="${esc(whatsappLink)}" target="_blank" rel="noopener">Message on WhatsApp</a>`
@@ -281,8 +308,126 @@ ${ogTags}
     font-size: 0.8rem;
   }
   .apnasite-badge:hover { color: var(--text); }
+  .reviews-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  .review-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+  }
+  .review-card .stars { color: var(--accent); margin-bottom: 0.5rem; }
+  .review-card .review-meta { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; }
+  .site-form {
+    max-width: 500px;
+    margin-top: 1.5rem;
+  }
+  .site-form label {
+    display: block;
+    margin-bottom: 1.25rem;
+  }
+  .site-form input,
+  .site-form select,
+  .site-form textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+  }
+  .site-form .optional-label { font-size: 0.8rem; color: var(--text-muted); }
+  .form-status { margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted); }
+  .form-status.ok { color: var(--accent); }
+  .form-status.err { color: #b42318; }
+  .add-to-cart-btn {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .add-to-cart-btn:hover { opacity: 0.9; }
+  .cart-float {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 998;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 999px;
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .cart-float .cart-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 999px;
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cart-dropdown {
+    position: fixed;
+    top: 76px;
+    right: 20px;
+    z-index: 997;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    width: 300px;
+    max-height: 400px;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    display: none;
+  }
+  .cart-dropdown.open { display: block; }
+  .cart-dropdown h3 { margin: 0 0 0.75rem; font-size: 1rem; }
+  .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .cart-item:last-child { border-bottom: none; }
+  .cart-item .remove-btn { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.85rem; }
+  .cart-empty { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1rem 0; }
+  .cart-total { font-weight: 700; margin-top: 0.75rem; text-align: right; }
+  .checkout-toggle { width: 100%; margin-top: 0.85rem; border: none; cursor: pointer; }
+  .checkout-form { margin-top: 0.85rem; display: none; }
+  .checkout-form.open { display: block; }
+  .checkout-form .btn { border: none; cursor: pointer; width: 100%; margin-left: 0; margin-right: 0; }
+  .map-embed {
+    flex: 1;
+    min-width: 260px;
+    height: 220px;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
   @media (max-width: 600px) {
     .hero h1 { font-size: 2rem; }
+    .cart-dropdown { left: 12px; right: 12px; width: auto; }
   }
 </style>
 </head>
@@ -333,16 +478,324 @@ ${ogTags}
           ${whatsappLink ? `<p>&#128172; <a href="${esc(whatsappLink)}" target="_blank" rel="noopener">WhatsApp: ${esc(data.whatsapp)}</a></p>` : ""}
           ${emailLink ? `<p>&#9993; <a href="${esc(emailLink)}">${esc(data.email)}</a></p>` : ""}
         </div>
-        <div class="map-placeholder">${data.address ? "Map: " + esc(data.address) : "Map"}</div>
+        ${
+          mapSrc
+            ? `<iframe class="map-embed" src="${esc(mapSrc)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map for ${esc(data.shopName)}"></iframe>`
+            : `<div class="map-placeholder">Map</div>`
+        }
       </div>
     </div>
   </section>
+
+  <section class="reviews">
+    <div class="wrap">
+      <h2>Customer Reviews</h2>
+      ${
+        options.reviews && options.reviews.length > 0
+          ? `<div class="reviews-grid">
+          ${options.reviews
+            .map((r) => {
+              const stars = "&#9733;".repeat(Math.min(Math.max(r.rating, 1), 5));
+              return `<div class="review-card">
+              <div class="stars">${stars}</div>
+              <p>${esc(r.comment)}</p>
+              <div class="review-meta">${esc(r.author)} &middot; ${esc(r.createdAt)}</div>
+            </div>`;
+            })
+            .join("\n")}
+        </div>`
+          : `<p class="cart-empty">No reviews yet.</p>`
+      }
+      <form class="site-form" id="review-form">
+        <h3>Leave a Review</h3>
+        <label>
+          Name *
+          <input type="text" name="author" required />
+        </label>
+        <label>
+          Rating *
+          <select name="rating" required>
+            <option value="5">5 stars</option>
+            <option value="4">4 stars</option>
+            <option value="3">3 stars</option>
+            <option value="2">2 stars</option>
+            <option value="1">1 star</option>
+          </select>
+        </label>
+        <label>
+          Comment *
+          <textarea name="comment" rows="4" maxlength="2000" required></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Submit Review</button>
+        <div class="form-status" id="review-status" role="status"></div>
+      </form>
+    </div>
+  </section>
+
+  ${
+    options.appointmentServices && options.appointmentServices.length > 0
+      ? `<section class="alt appointments">
+    <div class="wrap">
+      <h2>Book an Appointment</h2>
+      <form class="site-form" id="appointment-form">
+        <label>
+          Name *
+          <input type="text" name="name" required />
+        </label>
+        <label>
+          Email *
+          <input type="email" name="email" required />
+        </label>
+        <label>
+          Phone <span class="optional-label">(optional)</span>
+          <input type="tel" name="phone" />
+        </label>
+        <label>
+          Service *
+          <input type="text" name="service" list="service-suggestions" required />
+          <datalist id="service-suggestions">
+            ${options.appointmentServices.map((s) => `<option value="${esc(s)}" />`).join("\n            ")}
+          </datalist>
+        </label>
+        <label>
+          Date *
+          <input type="date" name="date" required />
+        </label>
+        <label>
+          Time *
+          <input type="text" name="time" placeholder="e.g. 10:30 AM" required />
+        </label>
+        <label>
+          Notes <span class="optional-label">(optional)</span>
+          <textarea name="notes" rows="3"></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Request Appointment</button>
+        <div class="form-status" id="appointment-status" role="status"></div>
+      </form>
+    </div>
+  </section>`
+      : ""
+  }
 
   ${
     options.showBadge !== false
       ? `<footer><a class="apnasite-badge" href="${origin ?? ""}/" rel="noopener">&#10024; Made with ApnaSite</a></footer>`
       : ""
   }
+
+  ${
+    options.enableOrders
+      ? `<button class="cart-float" id="cart-float-btn" onclick="toggleCart()">🛒<span class="cart-count" id="cart-count">0</span></button>
+  <div class="cart-dropdown" id="cart-dropdown">
+    <h3>Your Cart</h3>
+    <div id="cart-items"></div>
+    <div class="cart-total" id="cart-total"></div>
+    <button type="button" class="btn btn-primary checkout-toggle" id="checkout-toggle">Place Order</button>
+    <form class="site-form checkout-form" id="checkout-form">
+      <label>
+        Name *
+        <input type="text" name="customerName" required />
+      </label>
+      <label>
+        Email *
+        <input type="email" name="customerEmail" required />
+      </label>
+      <label>
+        Phone <span class="optional-label">(optional)</span>
+        <input type="tel" name="customerPhone" />
+      </label>
+      <label>
+        Payment *
+        <select name="paymentMethod" required>
+          <option value="cod">Cash on Delivery</option>
+          <option value="razorpay">Razorpay</option>
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary">Confirm Order</button>
+      <div class="form-status" id="checkout-status" role="status"></div>
+    </form>
+  </div>`
+      : ""
+  }
+
+  <button id="tts-btn" onclick="toggleTTS()" style="position:fixed;bottom:20px;right:20px;z-index:999;width:44px;height:44px;border-radius:999px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.12);" aria-label="Read page aloud">🔊</button>
+
+  <script>
+  (function() {
+    try {
+      var body = JSON.stringify({siteId: '__SITE_ID__', path: location.pathname, referrer: document.referrer});
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/analytics', new Blob([body], {type:'application/json'}));
+      } else {
+        fetch('/api/analytics', {method:'POST', headers:{'Content-Type':'application/json'}, body:body, keepalive:true});
+      }
+    } catch(e) {}
+  })();
+
+  function toggleTTS() {
+    if (!('speechSynthesis' in window)) return;
+    var text = ${jsString(data.shopName)} + '. ' + ${jsString(data.tagline || "")} + '. ' + ${jsString(data.aboutText || "")};
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = ${jsString(htmlLang)};
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+      window.setTimeout(function(){ speechSynthesis.speak(u); }, 80);
+    } else {
+      speechSynthesis.speak(u);
+    }
+  }
+
+  function formStatus(id, message, ok) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'form-status ' + (ok ? 'ok' : 'err');
+  }
+
+  function formJson(form) {
+    var data = {};
+    new FormData(form).forEach(function(value, key) { data[key] = String(value); });
+    return data;
+  }
+
+  function postJson(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(res) {
+      if (!res.ok) {
+        return res.json().catch(function(){ return {}; }).then(function(data) {
+          throw new Error(data.error || 'Request failed');
+        });
+      }
+      return res.json();
+    });
+  }
+
+  var reviewForm = document.getElementById('review-form');
+  if (reviewForm) {
+    reviewForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var data = formJson(reviewForm);
+      postJson('/api/reviews', {
+        siteId: '__SITE_ID__',
+        author: data.author,
+        rating: Number(data.rating),
+        comment: data.comment
+      }).then(function() {
+        reviewForm.reset();
+        formStatus('review-status', 'Review submitted for approval.', true);
+      }).catch(function(err) {
+        formStatus('review-status', err.message || 'Could not submit review.', false);
+      });
+    });
+  }
+
+  var appointmentForm = document.getElementById('appointment-form');
+  if (appointmentForm) {
+    appointmentForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var data = formJson(appointmentForm);
+      postJson('/api/appointments', {
+        siteId: '__SITE_ID__',
+        customerName: data.name,
+        customerEmail: data.email,
+        customerPhone: data.phone,
+        service: data.service,
+        date: data.date,
+        time: data.time,
+        notes: data.notes
+      }).then(function() {
+        appointmentForm.reset();
+        formStatus('appointment-status', 'Appointment request received.', true);
+      }).catch(function(err) {
+        formStatus('appointment-status', err.message || 'Could not request appointment.', false);
+      });
+    });
+  }
+
+  ${
+    options.enableOrders
+      ? `
+  var _cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  var _lastOrderMessage = '';
+  function _saveCart() { localStorage.setItem('cart', JSON.stringify(_cart)); }
+  function _renderCart() {
+    var count = _cart.reduce(function(s,i){return s+i.qty;},0);
+    var el = document.getElementById('cart-count'); if(el) el.textContent = count;
+    var items = document.getElementById('cart-items'); var tot = document.getElementById('cart-total');
+    if(!items) return;
+    var checkoutToggle = document.getElementById('checkout-toggle');
+    var checkoutForm = document.getElementById('checkout-form');
+    if(!_cart.length){
+      items.innerHTML='<div class="cart-empty">' + (_lastOrderMessage || 'Your cart is empty.') + '</div>';
+      tot.textContent='';
+      if (checkoutToggle) checkoutToggle.style.display = 'none';
+      if (checkoutForm && !_lastOrderMessage) checkoutForm.classList.remove('open');
+      return;
+    }
+    if (checkoutToggle) checkoutToggle.style.display = 'block';
+    items.innerHTML = _cart.map(function(c,i){ return '<div class="cart-item"><span>'+c.name+' &times; '+c.qty+'</span><span>'+c.priceLabel+'</span><button class="remove-btn" onclick="removeFromCart('+i+')">Remove</button></div>'; }).join('');
+    var total = _cart.reduce(function(s,i){return s + (i.priceAmount * i.qty);},0);
+    tot.textContent = 'Total: ₹' + total.toLocaleString('en-IN');
+  }
+  function addToCart(name, priceLabel, priceAmount) {
+    var found = _cart.find(function(c){return c.name===name;});
+    if(found){ found.qty++; } else { _cart.push({name:name, priceLabel:priceLabel, priceAmount:priceAmount, qty:1}); }
+    _saveCart(); _renderCart(); toggleCart(true);
+  }
+  function removeFromCart(i) { _cart.splice(i,1); _saveCart(); _renderCart(); }
+  function toggleCart(forceOpen) {
+    var dd = document.getElementById('cart-dropdown');
+    if(forceOpen) dd.classList.add('open'); else dd.classList.toggle('open');
+  }
+  document.addEventListener('click', function(e) {
+    var dd = document.getElementById('cart-dropdown');
+    var btn = document.getElementById('cart-float-btn');
+    if(dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+  });
+  document.querySelectorAll('.add-to-cart-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      addToCart(btn.dataset.name || '', btn.dataset.priceLabel || '', Number(btn.dataset.priceAmount || 0));
+    });
+  });
+  var checkoutToggle = document.getElementById('checkout-toggle');
+  var checkoutForm = document.getElementById('checkout-form');
+  if (checkoutToggle && checkoutForm) {
+    checkoutToggle.addEventListener('click', function() { checkoutForm.classList.toggle('open'); });
+    checkoutForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!_cart.length) {
+        formStatus('checkout-status', 'Your cart is empty.', false);
+        return;
+      }
+      var data = formJson(checkoutForm);
+      postJson('/api/orders', {
+        siteId: '__SITE_ID__',
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+        paymentMethod: data.paymentMethod,
+        items: _cart.map(function(item) {
+          return {name: item.name, price: item.priceAmount, quantity: item.qty};
+        })
+      }).then(function(result) {
+        _cart = [];
+        _lastOrderMessage = 'Order placed. Reference: ' + result.orderId;
+        _saveCart();
+        _renderCart();
+        checkoutForm.reset();
+        checkoutForm.classList.remove('open');
+      }).catch(function(err) {
+        formStatus('checkout-status', err.message || 'Could not place order.', false);
+      });
+    });
+  }
+  _renderCart();`
+      : ""
+  }
+  </script>
 </body>
 </html>
 `;

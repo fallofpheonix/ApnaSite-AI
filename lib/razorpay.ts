@@ -14,6 +14,7 @@ import { PLANS } from "./plans";
 // a payment.
 
 const API_BASE = "https://api.razorpay.com/v1";
+const API_TIMEOUT_MS = 15_000;
 
 export function razorpayConfigured(): boolean {
   return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
@@ -30,20 +31,27 @@ function authHeader(): string {
 }
 
 async function rzp<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    const message = json?.error?.description || `Razorpay API error (${res.status})`;
-    throw new Error(message);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: authHeader(),
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      const message = json?.error?.description || `Razorpay API error (${res.status})`;
+      throw new Error(message);
+    }
+    return json as T;
+  } finally {
+    clearTimeout(timeout);
   }
-  return json as T;
 }
 
 // ── Plan ────────────────────────────────────────────────────────────────────

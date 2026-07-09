@@ -1,11 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Language, StorefrontData } from "./types";
 
-// 30s cap per attempt (the SDK aborts via AbortController internally) and
-// exactly one retry — the SDK retries timeouts, connection errors, 429 and
-// 5xx with backoff. A shop owner watching the loading screen shouldn't wait
-// longer than ~a minute worst-case.
-const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
+// 30s timeout per attempt, 2 retries with exponential backoff.
+// A shop owner watching the loading screen shouldn't wait longer than ~90s worst-case.
+const client = new Anthropic({ timeout: 30_000, maxRetries: 2 });
 
 const STOREFRONT_SCHEMA = {
   type: "object",
@@ -107,29 +105,58 @@ export class AIGenerationError extends Error {
   }
 }
 
+/** Callback for streaming progress updates during generation. */
+export type ProgressCallback = (progress: number, message: string) => void;
+
+/**
+ * Generate storefront data from a business description.
+ * Supports optional progress callbacks for streaming UI updates.
+ */
 export async function parseShopDescription(
   description: string,
-  language: Language
+  language: Language,
+  onProgress?: ProgressCallback,
+  signal?: AbortSignal
 ): Promise<StorefrontData> {
-  const response = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 4096,
-    thinking: { type: "adaptive" },
-    output_config: {
-      effort: "medium",
-      format: {
-        type: "json_schema",
-        schema: STOREFRONT_SCHEMA,
+  onProgress?.(10, "Connecting to AI...");
+
+  let response: Awaited<ReturnType<typeof client.messages.create>>;
+  try {
+    response = await client.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 4096,
+      thinking: { type: "adaptive" },
+      output_config: {
+        effort: "medium",
+        format: {
+          type: "json_schema",
+          schema: STOREFRONT_SCHEMA,
+        },
       },
-    },
-    system: buildSystemPrompt(language),
-    messages: [
-      {
-        role: "user",
-        content: `Business owner's description (this may be a raw, occasionally messy voice transcript):\n\n"""${description}"""`,
-      },
-    ],
-  });
+      system: buildSystemPrompt(language),
+      messages: [
+        {
+          role: "user",
+          content: `Business owner's description (this may be a raw, occasionally messy voice transcript):\n\n"""${description}"""`,
+        },
+      ],
+    }, { signal });
+    onProgress?.(80, "Processing AI response...");
+  } catch (err) {
+    if (err instanceof Anthropic.AuthenticationError) {
+      throw err;
+    }
+    if (err instanceof Anthropic.RateLimitError) {
+      throw err;
+    }
+    if (err instanceof Anthropic.APIConnectionTimeoutError || err instanceof Anthropic.APIConnectionError) {
+      throw new AIGenerationError(
+        "The AI service is temporarily unavailable. Please try again in a moment.",
+        "empty"
+      );
+    }
+    throw err;
+  }
 
   if (response.stop_reason === "refusal") {
     throw new AIGenerationError(
@@ -145,6 +172,8 @@ export async function parseShopDescription(
       "empty"
     );
   }
+
+  onProgress?.(90, "Building your website...");
 
   try {
     const parsed = JSON.parse(textBlock.text) as Omit<StorefrontData, "language">;

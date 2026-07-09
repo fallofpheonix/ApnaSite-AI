@@ -23,18 +23,18 @@ model User {
 // row (or a non-active status) means the free plan — plan rules themselves
 // live in lib/plans.ts, not in the database.
 model Subscription {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   planKey                String // "pro" — must match a key in lib/plans.ts
-  razorpaySubscriptionId String   @unique
+  razorpaySubscriptionId String    @unique
   // Mirrors Razorpay's subscription lifecycle: created → authenticated/active
   // → (halted | cancelled | completed | expired). Only "active" and
   // "authenticated" grant paid features.
   status                 String
   currentPeriodEnd       DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 }
 
 // One row per outstanding login code. Codes are stored hashed so a peek at
@@ -81,4 +81,114 @@ model Site {
   published Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  pageviews     Pageview[]
+  reviews       Review[]
+  appointments  Appointment[]
+  orders        Order[]
+  domains       Domain[]
+  notifications Notification[]
+
+  @@index([userId])
+  @@index([userId, published])
+}
+
+// ── Analytics ──────────────────────────────────────────────────────────
+model Pageview {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  path      String   @default("/")
+  referrer  String?
+  userAgent String?
+  ip        String?
+  country   String?
+  createdAt DateTime @default(now())
+
+  @@index([siteId])
+  @@index([createdAt])
+}
+
+// ── Reviews ────────────────────────────────────────────────────────────
+model Review {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  author    String
+  rating    Int
+  comment   String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([siteId])
+}
+
+// ── Appointments ───────────────────────────────────────────────────────
+model Appointment {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  service   String
+  date      String   // ISO date YYYY-MM-DD
+  time      String   // HH:MM
+  status    String   @default("pending") // pending | confirmed | cancelled
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([siteId])
+  @@index([date])
+}
+
+// ── Orders ─────────────────────────────────────────────────────────────
+model Order {
+  id             String   @id @default(cuid())
+  siteId         String
+  site           Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  customerName   String
+  customerEmail  String
+  customerPhone  String?
+  items          String   // JSON: [{name, price, quantity}]
+  total          Float
+  status         String   @default("pending") // pending | confirmed | delivered | cancelled
+  paymentMethod  String   @default("cod")     // cod | razorpay
+  paymentId      String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([createdAt])
+}
+
+// ── Custom Domains ─────────────────────────────────────────────────────
+model Domain {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  domain      String   @unique
+  verified    Boolean  @default(false)
+  verificationToken String @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([siteId])
+}
+
+// ── Notifications log ──────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  siteId    String?
+  site      Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  type      String   // welcome | publish | billing | appointment | order | marketing
+  channel   String   // email | sms | whatsapp
+  recipient String
+  subject   String?
+  body      String
+  status    String   @default("sent") // sent | failed | pending
+  createdAt DateTime @default(now())
+
+  @@index([siteId])
+  @@index([createdAt])
 }

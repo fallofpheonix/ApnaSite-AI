@@ -82,6 +82,40 @@ Generates:
 
 Generates or enhances banners, logos, and promotional images.
 
+### Screenshot-to-Website
+
+Users can upload a screenshot or photo of an existing website as a visual
+reference. The AI analyzes its visible structure, spacing, typography,
+colors, component hierarchy, and responsive intent, then converts those
+observations into a structured website-generation prompt.
+
+The design engine uses that prompt to assemble an original basic website from
+ApnaSite's approved components. The generated site may preserve high-level
+design characteristics, but must not copy third-party logos, trademarks,
+copyrighted text, proprietary images, or distinctive assets. Users must
+confirm that they own the reference or have permission to use it.
+
+Initial workflow:
+
+1. Upload one or more screenshots or photos.
+2. Detect sections and components such as navigation, hero, product grid,
+   testimonials, contact details, and footer.
+3. Extract design tokens such as color roles, type scale, spacing, borders,
+   and alignment.
+4. Show the interpreted structure and generated prompt for user review.
+5. Combine it with the user's business information.
+6. Generate an editable, responsive basic website using safe reusable
+   components and placeholder or user-provided assets.
+
+Failure handling:
+
+- Reject unreadable, unsupported, or excessively large images.
+- Ask for missing mobile or lower-page screenshots when the layout is
+  ambiguous.
+- Mark uncertain text and sections for user confirmation.
+- Never infer hidden functionality from a static image; forms, payments,
+  authentication, and integrations require explicit configuration.
+
 ### Prompt-based Editing
 
 Users modify the site by saying:
@@ -96,9 +130,34 @@ No manual editing required.
 
 Deploys the website instantly with hosting included.
 
-### Mobile Responsive
+### Mobile-First Builder and Websites
 
-Automatically optimized for phones, tablets, and desktops.
+The complete product is designed for phone users first, including onboarding,
+voice/text capture, screenshot upload, generation progress, editing, preview,
+publishing, billing, and analytics. A laptop or desktop is never required.
+
+Generated websites are optimized for phones first and progressively enhanced
+for tablets and desktops.
+
+Mobile requirements:
+
+- Single-column primary flows with no horizontal scrolling.
+- Touch targets of at least 44×44 CSS pixels.
+- Bottom-positioned or thumb-reachable primary actions.
+- Native camera/gallery upload with image compression before transfer.
+- Voice input and short, step-based forms instead of large configuration
+  panels.
+- Inline editing that works without hover, right-click, or keyboard shortcuts.
+- Device-width preview by default, with optional tablet and desktop previews.
+- Draft recovery after refresh, network interruption, or accidental closure.
+- Clear progress and retry states for slow or unstable mobile connections.
+- Minimal JavaScript, lazy-loaded media, responsive images, and compressed
+  assets.
+- Target Core Web Vitals on mid-range Android devices over constrained 4G.
+- Support current mobile Chrome and Safari, with graceful fallbacks for
+  unsupported speech or sharing APIs.
+- Respect safe-area insets, browser toolbars, virtual keyboards, text scaling,
+  reduced motion, and screen-reader navigation.
 
 ### SEO Optimization
 
@@ -213,9 +272,15 @@ Create a professional business website in minutes using only your voice or simpl
 ### Phase 1: Modular Component Assembly
 Instead of generating raw HTML/CSS, the AI will assemble pre-built, highly optimized React components (e.g., Heroes, Contact Forms, Footers). When a user requests a site, the AI orchestrator selects the necessary components and populates them with data, guaranteeing a stable, syntax-free, and responsive foundation.
 
+Every component must pass a mobile-first acceptance gate before entering the
+library: 320 px minimum viewport support, touch accessibility, keyboard and
+screen-reader operation, responsive media, bounded layout shift, and acceptable
+performance on a mid-range Android device.
+
 ### Phase 2: Granular Editing & Templates
 - **Block-Level Editing:** Users can highlight specific sections and prompt the AI to swap or modify just that component (e.g., "Change this grid to a carousel") without risking the rest of the site.
 - **Cheaper Templates:** Provide a library of ready-made templates. Choosing and slightly modifying a template will be significantly cheaper than a fully custom AI-generated build.
+- **Screenshot-to-Website:** Convert authorized reference screenshots into a reviewed design specification, then map that specification onto ApnaSite's component library. Preserve layout intent without cloning protected content or assets.
 - **Claude Optimization:** Integrate Claude's API to leverage advanced designing, coding, and debugging skills to continuously optimize and refine the generated code under the hood.
 
 ### Phase 3: Hosting, Exporting & Monetization

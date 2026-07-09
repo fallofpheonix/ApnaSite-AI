@@ -20,6 +20,26 @@ export function emailFrom(): string {
 
 /** Sends the 6-digit login code. Throws (with the provider's response in the
  * message) on any non-2xx — callers decide how to surface that. */
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const res = await fetch(RESEND_API, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: emailFrom(),
+      to,
+      subject,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Resend API error ${res.status}: ${body.slice(0, 300)}`);
+  }
+}
+
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   const res = await fetch(RESEND_API, {
     method: "POST",
