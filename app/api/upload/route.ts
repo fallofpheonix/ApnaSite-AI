@@ -4,21 +4,20 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
-import { UPLOADS_DIR, ALLOWED_IMAGE_TYPES } from "@/lib/uploads";
+import {
+  UPLOADS_DIR,
+  ALLOWED_IMAGE_TYPES,
+  isCloudStorage,
+  s3Upload,
+  s3FileUrl,
+} from "@/lib/uploads";
 
 // POST /api/upload — product photo upload.
 //
-// STORAGE NOTE: files land on the local disk under UPLOADS_DIR (default
-// ./uploads) and are served back by app/uploads/[name]/route.ts. They
-// deliberately do NOT go in public/ — `next start` only serves public/ files
-// that existed at build time, so runtime uploads there 404 in production.
-// Local disk is perfect for a single VPS but does NOT survive on serverless
-// hosts (Vercel's filesystem is read-only at runtime except /tmp, and
-// instances are ephemeral). To move to S3/R2/Vercel Blob later, this route is
-// the only file that changes: replace the mkdir/writeFile block below with a
-// PutObject call and return the bucket's public URL instead of the local
-// path. The client and the site data format already treat the value as an
-// opaque URL, and app/uploads/[name]/route.ts simply stops being hit.
+// When S3/R2 is configured (S3_ENDPOINT + S3_BUCKET + S3_ACCESS_KEY +
+// S3_SECRET_KEY), files are uploaded to cloud storage and the public URL
+// is returned. Otherwise, falls back to local disk served by
+// app/uploads/[name]/route.ts.
 
 const MAX_BYTES = 4 * 1024 * 1024; // 4 MB — plenty for a phone photo after browser downscaling
 
@@ -37,8 +36,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Please log in." }, { status: 401 });
 
   // Uploads consume disk, so they get their own rate bucket.
-  const limit = rateLimit(`upload:user:${user.id}`, 30, 5 * 60 * 1000);
-  const byIp = rateLimit(`upload:ip:${clientIp(req)}`, 60, 5 * 60 * 1000);
+  const limit = await rateLimit(`upload:user:${user.id}`, 30, 5 * 60 * 1000);
+  const byIp = await rateLimit(`upload:ip:${clientIp(req)}`, 60, 5 * 60 * 1000);
   if (!limit.ok || !byIp.ok) {
     const retry = Math.max(limit.retryAfterSeconds, byIp.retryAfterSeconds);
     return NextResponse.json(
@@ -80,17 +79,25 @@ export async function POST(req: NextRequest) {
 
   // Random server-chosen name: never trust the client filename.
   const name = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+
   try {
+    if (isCloudStorage()) {
+      // Cloud storage path (S3 / Cloudflare R2)
+      const key = `uploads/${name}`;
+      await s3Upload(key, buf, file.type);
+      const url = await s3FileUrl(key);
+      return NextResponse.json({ url }, { status: 201 });
+    }
+
+    // Local disk fallback
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(path.join(UPLOADS_DIR, name), buf);
+    return NextResponse.json({ url: `/uploads/${name}` }, { status: 201 });
   } catch (err) {
-    // Disk full, read-only fs (serverless!), bad UPLOADS_DIR — fail honestly.
-    console.error("Photo write failed:", err);
+    console.error("Photo upload failed:", err);
     return NextResponse.json(
-      { error: "Couldn't save the photo on the server. Try again or use a smaller photo." },
+      { error: "Couldn't save the photo. Try again or use a smaller photo." },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({ url: `/uploads/${name}` }, { status: 201 });
 }

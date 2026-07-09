@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import VoiceTextCapture from "@/components/VoiceTextCapture";
@@ -8,12 +8,14 @@ import StorefrontPreview from "@/components/StorefrontPreview";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import UpgradeSheet from "@/components/UpgradeSheet";
 import AppFooter from "@/components/AppFooter";
+import TemplatePicker from "@/components/TemplatePicker";
 import { useAuthUser } from "@/components/useAuthUser";
 import { ensureProductIds, validStorefront, type Language, type StorefrontData } from "@/lib/types";
 import ParticleBackground from "@/components/ParticleBackground";
 
 type Stage = "capture" | "loading" | "preview" | "published";
 const RECOVERY_KEY = "apnasite:draft:v1";
+const MAX_HISTORY = 30;
 
 export default function Home() {
   const { user, logout } = useAuthUser();
@@ -32,6 +34,65 @@ export default function Home() {
   const [progressMessage, setProgressMessage] = useState("");
   const [generationJobId, setGenerationJobId] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  // ── Undo / Redo history ──────────────────────────────────────────────
+  const historyRef = useRef<StorefrontData[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const pushHistory = useCallback((snapshot: StorefrontData) => {
+    const idx = historyIndexRef.current;
+    const hist = historyRef.current.slice(0, idx + 1);
+    hist.push(JSON.parse(JSON.stringify(snapshot)));
+    if (hist.length > MAX_HISTORY) hist.shift();
+    historyRef.current = hist;
+    historyIndexRef.current = hist.length - 1;
+    setCanUndo(hist.length > 1);
+    setCanRedo(false);
+  }, []);
+
+  const undo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    if (idx <= 0) return;
+    const prev = historyRef.current[idx - 1];
+    historyIndexRef.current = idx - 1;
+    setData(prev);
+    setCanUndo(idx - 1 > 0);
+    setCanRedo(true);
+  }, []);
+
+  const redo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    const hist = historyRef.current;
+    if (idx >= hist.length - 1) return;
+    const next = hist[idx + 1];
+    historyIndexRef.current = idx + 1;
+    setData(next);
+    setCanUndo(true);
+    setCanRedo(idx + 1 < hist.length - 1);
+  }, []);
+
+  // Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (stage !== "preview" && stage !== "published") return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        redo();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [stage, undo, redo]);
 
   // Cleanup SSE on unmount
   useEffect(() => {
@@ -63,43 +124,71 @@ export default function Home() {
   };
 
   // Opened from the dashboard as /?site=<id> → load that site into the editor.
+  // Or from template picker as /?template=<base64encoded> → load template data.
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("site");
-    if (!id) {
-      queueMicrotask(() => {
-        try {
-          const recovered = JSON.parse(localStorage.getItem(RECOVERY_KEY) ?? "null") as {
-            data?: unknown;
-            siteId?: string | null;
-            sampleMode?: boolean;
-          } | null;
-          if (recovered && validStorefront(recovered.data)) {
-            setData(ensureProductIds(recovered.data));
-            setSiteId(typeof recovered.siteId === "string" ? recovered.siteId : null);
-            setSampleMode(Boolean(recovered.sampleMode));
-            setStage("preview");
-          }
-        } catch {
-          localStorage.removeItem(RECOVERY_KEY);
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("site");
+    const templateParam = params.get("template");
+
+    if (id) {
+      window.history.replaceState(null, "", "/");
+      (async () => {
+        const res = await fetch(`/api/sites/${id}`);
+        if (res.status === 401) {
+          window.location.href = `/login?next=${encodeURIComponent(`/?site=${id}`)}`;
+          return;
         }
-      });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json.error || "Couldn't open that site.");
+          return;
+        }
+        setSiteId(json.site.id);
+        const d = ensureProductIds(json.site.data);
+        setData(d);
+        pushHistory(d);
+        setStage("preview");
+      })();
       return;
     }
-    (async () => {
-      const res = await fetch(`/api/sites/${id}`);
-      if (res.status === 401) {
-        window.location.href = `/login?next=${encodeURIComponent(`/?site=${id}`)}`;
-        return;
+
+    if (templateParam) {
+      window.history.replaceState(null, "", "/");
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(templateParam)));
+        if (validStorefront(decoded)) {
+          const d = ensureProductIds(decoded);
+          setData(d);
+          pushHistory(d);
+          setStage("preview");
+        } else {
+          setError("Invalid template data.");
+        }
+      } catch {
+        setError("Could not load the selected template.");
       }
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error || "Couldn't open that site.");
-        return;
+      return;
+    }
+
+    queueMicrotask(() => {
+      try {
+        const recovered = JSON.parse(localStorage.getItem(RECOVERY_KEY) ?? "null") as {
+          data?: unknown;
+          siteId?: string | null;
+          sampleMode?: boolean;
+        } | null;
+        if (recovered && validStorefront(recovered.data)) {
+          const d = ensureProductIds(recovered.data);
+          setData(d);
+          pushHistory(d);
+          setSiteId(typeof recovered.siteId === "string" ? recovered.siteId : null);
+          setSampleMode(Boolean(recovered.sampleMode));
+          setStage("preview");
+        }
+      } catch {
+        localStorage.removeItem(RECOVERY_KEY);
       }
-      setSiteId(json.site.id);
-      setData(ensureProductIds(json.site.data));
-      setStage("preview");
-    })();
+    });
   }, []);
 
   // Crash/network/navigation recovery for unsaved and in-progress edits.
@@ -167,7 +256,9 @@ export default function Home() {
         setGenerationJobId(null);
         try {
           const payload = JSON.parse(e.data);
-          setData(ensureProductIds(payload.data));
+          const d = ensureProductIds(payload.data);
+          setData(d);
+          pushHistory(d);
           setSampleMode(Boolean(payload.sampleMode));
           setSiteId(null);
           setStage("preview");
@@ -295,6 +386,10 @@ export default function Home() {
     setProgress(0);
     setProgressMessage("");
     setStage("capture");
+    historyRef.current = [];
+    historyIndexRef.current = -1;
+    setCanUndo(false);
+    setCanRedo(false);
     localStorage.removeItem(RECOVERY_KEY);
     window.history.replaceState(null, "", "/");
   };
@@ -353,9 +448,7 @@ export default function Home() {
           )}
 
           {stage === "capture" && (
-            <div className="stage-enter" style={{ animationDelay: "0.08s" }}>
-              <VoiceTextCapture onSubmit={handleGenerate} loading={false} />
-            </div>
+            <CaptureStage onGenerate={handleGenerate} />
           )}
         </div>
       ) : null}
@@ -393,6 +486,26 @@ export default function Home() {
               >
                 Start Over
               </button>
+              {stage === "preview" && (
+                <>
+                  <button
+                    onClick={undo}
+                    disabled={!canUndo}
+                    title="Undo (Ctrl+Z)"
+                    className="min-h-[44px] rounded-xl border border-ink/15 px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-ink/5 disabled:opacity-30"
+                  >
+                    ↩ Undo
+                  </button>
+                  <button
+                    onClick={redo}
+                    disabled={!canRedo}
+                    title="Redo (Ctrl+Shift+Z)"
+                    className="min-h-[44px] rounded-xl border border-ink/15 px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-ink/5 disabled:opacity-30"
+                  >
+                    ↪ Redo
+                  </button>
+                </>
+              )}
               {stage === "published" && (
                 <>
                   <Link
@@ -459,5 +572,70 @@ export default function Home() {
         onClose={() => setUpgradeMessage(null)}
       />
     </main>
+  );
+}
+
+function CaptureStage({ onGenerate }: { onGenerate: (desc: string, lang: Language) => void }) {
+  const [mode, setMode] = useState<"ai" | "template">("ai");
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const res = await fetch("/api/demo");
+      const json = await res.json();
+      if (json.data) {
+        window.location.href = `/?template=${btoa(encodeURIComponent(JSON.stringify(json.data)))}`;
+      }
+    } catch {
+      setDemoLoading(false);
+    }
+  };
+
+  return (
+    <div className="stage-enter w-full max-w-2xl" style={{ animationDelay: "0.08s" }}>
+      <div className="mb-6 flex justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("ai")}
+          className={`rounded-xl px-5 py-2.5 text-sm font-medium transition-colors ${
+            mode === "ai" ? "bg-teal text-paper" : "bg-ink/5 text-ink hover:bg-ink/10"
+          }`}
+        >
+          Describe with AI
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("template")}
+          className={`rounded-xl px-5 py-2.5 text-sm font-medium transition-colors ${
+            mode === "template" ? "bg-teal text-paper" : "bg-ink/5 text-ink hover:bg-ink/10"
+          }`}
+        >
+          Start from Template
+        </button>
+      </div>
+
+      {mode === "ai" ? (
+        <VoiceTextCapture onSubmit={onGenerate} loading={false} />
+      ) : (
+        <TemplatePicker
+          onSelect={(data) => {
+            const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
+            window.location.href = `/?template=${encoded}`;
+          }}
+        />
+      )}
+
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={handleDemo}
+          disabled={demoLoading}
+          className="rounded-xl border border-ink/15 px-6 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:border-ink/25 hover:text-ink disabled:opacity-50"
+        >
+          {demoLoading ? "Loading demo..." : "Skip login — try demo site"}
+        </button>
+      </div>
+    </div>
   );
 }

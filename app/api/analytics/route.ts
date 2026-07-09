@@ -5,7 +5,7 @@ import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  const limited = rateLimit(`analytics:post:${ip}`, 100, 60 * 1000);
+  const limited = await rateLimit(`analytics:post:${ip}`, 100, 60 * 1000);
   if (!limited.ok) return NextResponse.json({ error: "Too many requests." }, { status: 429 });
 
   let body: unknown;

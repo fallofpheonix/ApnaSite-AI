@@ -8,7 +8,7 @@ import { validStorefront, type StorefrontData } from "@/lib/types";
 const client = new Anthropic({ timeout: 30_000, maxRetries: 2 });
 const RATE_WINDOW = 60 * 60 * 1000;
 
-const SYSTEM_PROMPT = `You are a website editor. The user will give you a natural language instruction. Return ONLY a JSON object with the fields to update. Available fields: shopName, tagline, category, aboutText, hours, address, phone, whatsapp, email, themeOverride. For product changes, return {products: [...]} with the full updated array. Never invent facts - only modify what the user asks.`;
+const SYSTEM_PROMPT = `You are a website editor. The user will give you a natural language instruction. Return ONLY a JSON object with the fields to update. Available fields: shopName, tagline, category, aboutText, hours, address, phone, whatsapp, email, themeOverride, faq (array of {question, answer}). For product changes, return {products: [...]} with the full updated array. For FAQ changes, return {faq: [...]} with the full updated array. Never invent facts - only modify what the user asks.`;
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser(req);
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please log in." }, { status: 401 });
   }
 
-  const limited = rateLimit(`prompt:user:${user.id}`, 20, RATE_WINDOW);
+  const limited = await rateLimit(`prompt:user:${user.id}`, 20, RATE_WINDOW);
   if (!limited.ok) {
     return NextResponse.json(
       { error: `Too many requests. Try again in ${limited.retryAfterSeconds} seconds.` },

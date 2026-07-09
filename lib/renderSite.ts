@@ -413,6 +413,30 @@ ${ogTags}
   .cart-item:last-child { border-bottom: none; }
   .cart-item .remove-btn { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.85rem; }
   .cart-empty { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1rem 0; }
+  .faq-list { margin-top: 1.5rem; }
+  .faq-item {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+  }
+  .faq-item summary {
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    background: var(--card-bg);
+    list-style: none;
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::before { content: "+ "; color: var(--accent); font-weight: 700; }
+  .faq-item[open] summary::before { content: "− "; }
+  .faq-item p {
+    padding: 0 1.25rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
   .cart-total { font-weight: 700; margin-top: 0.75rem; text-align: right; }
   .checkout-toggle { width: 100%; margin-top: 0.85rem; border: none; cursor: pointer; }
   .checkout-form { margin-top: 0.85rem; display: none; }
@@ -578,6 +602,53 @@ ${ogTags}
   }
 
   ${
+    data.faq && data.faq.length > 0
+      ? `<section class="faq">
+    <div class="wrap">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-list">
+        ${data.faq
+          .map(
+            (f, i) => `
+        <details class="faq-item"${i === 0 ? " open" : ""}>
+          <summary>${esc(f.question)}</summary>
+          <p>${esc(f.answer)}</p>
+        </details>`
+          )
+          .join("\n")}
+      </div>
+    </div>
+  </section>`
+      : ""
+  }
+
+  <section class="alt contact-form-section">
+    <div class="wrap">
+      <h2>Send Us a Message</h2>
+      <form class="site-form" id="contact-form">
+        <label>
+          Name *
+          <input type="text" name="name" required />
+        </label>
+        <label>
+          Email *
+          <input type="email" name="email" required />
+        </label>
+        <label>
+          Phone <span class="optional-label">(optional)</span>
+          <input type="tel" name="phone" />
+        </label>
+        <label>
+          Message *
+          <textarea name="message" rows="4" required maxlength="2000"></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Send Message</button>
+        <div class="form-status" id="contact-status" role="status"></div>
+      </form>
+    </div>
+  </section>
+
+  ${
     options.showBadge !== false
       ? `<footer><a class="apnasite-badge" href="${origin ?? ""}/" rel="noopener">&#10024; Made with ApnaSite</a></footer>`
       : ""
@@ -711,6 +782,26 @@ ${ogTags}
         formStatus('appointment-status', 'Appointment request received.', true);
       }).catch(function(err) {
         formStatus('appointment-status', err.message || 'Could not request appointment.', false);
+      });
+    });
+  }
+
+  var contactForm = document.getElementById('contact-form');
+  if (contactForm) {
+    contactForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var data = formJson(contactForm);
+      postJson('/api/contact', {
+        siteId: '__SITE_ID__',
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        message: data.message
+      }).then(function() {
+        contactForm.reset();
+        formStatus('contact-status', 'Message sent! We\'ll get back to you soon.', true);
+      }).catch(function(err) {
+        formStatus('contact-status', err.message || 'Could not send message.', false);
       });
     });
   }

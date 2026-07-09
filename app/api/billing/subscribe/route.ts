@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const byUser = rateLimit(`billing:user:${user.id}`, 10, 10 * 60 * 1000);
-  const byIp = rateLimit(`billing:ip:${clientIp(req)}`, 20, 10 * 60 * 1000);
+  const byUser = await rateLimit(`billing:user:${user.id}`, 10, 10 * 60 * 1000);
+  const byIp = await rateLimit(`billing:ip:${clientIp(req)}`, 20, 10 * 60 * 1000);
   if (!byUser.ok || !byIp.ok) {
     return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 });
   }

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { siteId } = await params;
 
-  const limited = rateLimit(`export:user:${user.id}`, 10, 60 * 60 * 1000);
+  const limited = await rateLimit(`export:user:${user.id}`, 10, 60 * 60 * 1000);
   if (!limited.ok) {
     return NextResponse.json(
       { error: `Too many requests. Try again in ${limited.retryAfterSeconds} seconds.` },

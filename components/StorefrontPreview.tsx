@@ -237,6 +237,76 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
         </div>
       </section>
 
+      {/* FAQ */}
+      <section className="px-5 py-10 sm:px-16">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-2xl font-semibold" style={{ fontFamily: displayFont }}>
+            FAQs
+          </h2>
+          <button
+            type="button"
+            onClick={() => {
+              const faq = data.faq ? [...data.faq] : [];
+              faq.push({ question: "New question?", answer: "Answer here" });
+              update("faq", faq);
+            }}
+            className="min-h-[44px] rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
+            style={{ borderColor: theme.border }}
+          >
+            + Add FAQ
+          </button>
+        </div>
+        {data.faq && data.faq.length > 0 ? (
+          <div className="space-y-3">
+            {data.faq.map((f, i) => (
+              <div
+                key={i}
+                className="relative rounded-xl border p-4"
+                style={{ backgroundColor: theme.cardBg, borderColor: theme.border }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    const faq = data.faq!.filter((_, j) => j !== i);
+                    update("faq", faq.length > 0 ? faq : undefined);
+                  }}
+                  className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full text-sm opacity-50 hover:opacity-100"
+                >
+                  &#10005;
+                </button>
+                <EditableText
+                  value={f.question}
+                  onChange={(v) => {
+                    const faq = [...data.faq!];
+                    faq[i] = { ...faq[i], question: v };
+                    update("faq", faq);
+                  }}
+                  as="summary"
+                  className="pr-6 text-sm font-semibold"
+                  placeholder="Question"
+                />
+                <EditableText
+                  value={f.answer}
+                  onChange={(v) => {
+                    const faq = [...data.faq!];
+                    faq[i] = { ...faq[i], answer: v };
+                    update("faq", faq);
+                  }}
+                  as="p"
+                  className="mt-1 text-sm"
+                  style={{ color: theme.textMuted }}
+                  placeholder="Answer"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: theme.textMuted }}>
+            No FAQs yet. Add some to help customers find answers quickly.
+          </p>
+        )}
+      </section>
+
       <footer className="px-8 py-6 text-center text-xs" style={{ color: theme.textMuted }}>
         Built with ApnaSite AI
       </footer>

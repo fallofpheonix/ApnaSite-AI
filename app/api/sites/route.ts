@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "Please log in." }, { status: 401 });
 
-  const byUser = rateLimit(`sites:user:${user.id}`, 30, 5 * 60 * 1000);
-  const byIp = rateLimit(`sites:ip:${clientIp(req)}`, 60, 5 * 60 * 1000);
+  const byUser = await rateLimit(`sites:user:${user.id}`, 30, 5 * 60 * 1000);
+  const byIp = await rateLimit(`sites:ip:${clientIp(req)}`, 60, 5 * 60 * 1000);
   if (!byUser.ok || !byIp.ok) {
     return NextResponse.json({ error: "Too many requests. Slow down a little." }, { status: 429 });
   }

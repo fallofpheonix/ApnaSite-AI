@@ -37,6 +37,13 @@ export default function SiteDashboardPage() {
   const [tab, setTab] = useState<Tab>("analytics");
   const [siteData, setSiteData] = useState<StorefrontData | null>(null);
   const [siteName, setSiteName] = useState<string>("");
+  const [siteSlug, setSiteSlug] = useState<string | null>(null);
+  const [sitePublished, setSitePublished] = useState(false);
+  const [sitePublishedAt, setSitePublishedAt] = useState<string | null>(null);
+  const [slugInput, setSlugInput] = useState("");
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugSuccess, setSlugSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +65,10 @@ export default function SiteDashboardPage() {
         }
         setSiteData(json.site.data);
         setSiteName(json.site.name);
+        setSiteSlug(json.site.slug);
+        setSitePublished(json.site.published);
+        setSitePublishedAt(json.site.publishedAt ?? null);
+        setSlugInput(json.site.slug ?? "");
       })
       .catch(() => setError("Failed to load site."))
       .finally(() => setLoading(false));
@@ -65,6 +76,32 @@ export default function SiteDashboardPage() {
 
   const handleDataUpdate = (newData: StorefrontData) => {
     setSiteData(newData);
+  };
+
+  const handleSlugSave = async () => {
+    setSlugSaving(true);
+    setSlugError(null);
+    setSlugSuccess(false);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: slugInput }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSlugError(json.error || "Failed to update URL.");
+        return;
+      }
+      setSiteSlug(json.slug);
+      setSlugInput(json.slug);
+      setSlugSuccess(true);
+      setTimeout(() => setSlugSuccess(false), 2000);
+    } catch {
+      setSlugError("Failed to update URL.");
+    } finally {
+      setSlugSaving(false);
+    }
   };
 
   if (loading) {
@@ -104,6 +141,43 @@ export default function SiteDashboardPage() {
               ← Back to Dashboard
             </button>
             <h1 className="mt-1 font-display text-2xl text-ink">{siteName}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${sitePublished ? "bg-teal/15 text-teal" : "bg-ink/10 text-ink-soft"}`}>
+                {sitePublished ? "Live" : "Draft"}
+              </span>
+              {sitePublished && siteSlug && (
+                <a href={`/s/${siteSlug}`} target="_blank" rel="noopener" className="text-teal underline hover:text-teal-deep">
+                  /s/{siteSlug}
+                </a>
+              )}
+              {sitePublishedAt && (
+                <span className="text-xs text-ink-soft">
+                  Published {new Date(sitePublishedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            {/* Slug editor */}
+            {sitePublished && (
+              <div className="mt-3 flex items-center gap-2 text-sm">
+                <span className="text-ink-soft">URL:</span>
+                <span className="text-ink-soft">/s/</span>
+                <input
+                  type="text"
+                  value={slugInput}
+                  onChange={(e) => { setSlugInput(e.target.value); setSlugError(null); setSlugSuccess(false); }}
+                  className="w-48 rounded-lg border border-ink/15 bg-transparent px-2 py-1 text-sm text-ink focus:border-teal focus:outline-none"
+                  placeholder="your-url"
+                />
+                <button
+                  onClick={handleSlugSave}
+                  disabled={slugSaving || slugInput === siteSlug}
+                  className="rounded-lg bg-teal px-3 py-1 text-xs font-medium text-paper transition-colors hover:bg-teal-deep disabled:opacity-50"
+                >
+                  {slugSaving ? "Saving..." : slugSuccess ? "Saved ✓" : "Save"}
+                </button>
+                {slugError && <span className="text-xs text-brick">{slugError}</span>}
+              </div>
+            )}
           </div>
           <a
             href={`/`}

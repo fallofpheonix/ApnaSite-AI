@@ -38,7 +38,11 @@ export async function POST(req: NextRequest, { params }: Params) {
         const slug = site.slug ?? (await uniqueSlugFor(site.name, site.id, tx));
         await tx.site.update({
           where: { id },
-          data: { slug, published: true },
+          data: {
+            slug,
+            published: true,
+            publishedAt: site.publishedAt ?? new Date(),
+          },
         });
 
         return { kind: "ok" as const, slug };

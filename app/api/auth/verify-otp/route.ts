@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Enter your email and the 6-digit code." }, { status: 400 });
   }
 
-  const byIp = rateLimit(`verify:ip:${clientIp(req)}`, 20, 10 * 60 * 1000);
+  const byIp = await rateLimit(`verify:ip:${clientIp(req)}`, 20, 10 * 60 * 1000);
   if (!byIp.ok) {
     return NextResponse.json(
       { error: "Too many attempts. Please wait a few minutes and try again." },

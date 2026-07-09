@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ...and rate-limited per user AND per IP
-  const byUser = rateLimit(`generate:user:${user.id}`, 10, 5 * 60 * 1000);
-  const byIp = rateLimit(`generate:ip:${clientIp(req)}`, 20, 5 * 60 * 1000);
+  const byUser = await rateLimit(`generate:user:${user.id}`, 10, 5 * 60 * 1000);
+  const byIp = await rateLimit(`generate:ip:${clientIp(req)}`, 20, 5 * 60 * 1000);
   if (!byUser.ok || !byIp.ok) {
     const retry = Math.max(byUser.retryAfterSeconds, byIp.retryAfterSeconds);
     return NextResponse.json(

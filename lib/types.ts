@@ -55,6 +55,8 @@ export interface StorefrontData {
   whatsapp: string | null;
   email: string | null;
   language: Language;
+  /** Frequently asked questions. Optional. */
+  faq?: Array<{ question: string; answer: string }>;
 }
 
 /** Stable list key for editor rendering. randomUUID needs a secure context,
@@ -122,6 +124,14 @@ export function validStorefront(data: unknown): data is StorefrontData {
         isValidImage((p as Product).image) &&
         ((p as Product).stock === undefined || (p as Product).stock === null || typeof (p as Product).stock === "number") &&
         ((p as Product).sku === undefined || (p as Product).sku === null || isString((p as Product).sku, 100))
+    ) &&
+    (d.faq === undefined || d.faq === null ||
+      (Array.isArray(d.faq) && d.faq.length <= 20 &&
+        d.faq.every((f) =>
+          f && typeof f === "object" &&
+          isString((f as { question: string }).question, MAX_SHORT_TEXT) &&
+          isString((f as { answer: string }).answer)
+        ))
     )
   );
 }

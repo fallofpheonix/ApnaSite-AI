@@ -1,6 +1,9 @@
-// SQLite for now. To move to Postgres later: change provider to "postgresql",
-// point DATABASE_URL at the new server, and change Site.data from String to
-// Json - everything else carries over as-is.
+// SQLite for local dev. To deploy on PostgreSQL:
+// 1. Change provider to "postgresql"
+// 2. Point DATABASE_URL at your Postgres server
+// 3. Change Site.data and Order.items from String to Json
+// 4. Remove JSON.parse/stringify wrappers in API routes (Prisma returns
+//    objects directly for Json columns)
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -68,19 +71,23 @@ model WebhookEvent {
 }
 
 model Site {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
   // The full StorefrontData object, JSON-serialized. SQLite has no native
-  // JSON column type in Prisma, so it lives in a String.
-  data      String
+  // JSON column type, so it lives in a String. (PostgreSQL: change to Json.)
+  data        String
   // Public URL path segment (/s/<slug>). Unique across the whole database.
   // Stays reserved after unpublishing so republishing keeps the same URL.
-  slug      String?  @unique
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  slug        String?   @unique
+  published   Boolean   @default(false)
+  // When to auto-publish (null = not scheduled)
+  publishAt   DateTime?
+  // When the site was first published (null = never published yet)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   pageviews     Pageview[]
   reviews       Review[]
@@ -88,6 +95,7 @@ model Site {
   orders        Order[]
   domains       Domain[]
   notifications Notification[]
+  contactMessages ContactMessage[]
 
   @@index([userId])
   @@index([userId, published])
@@ -187,6 +195,22 @@ model Notification {
   subject   String?
   body      String
   status    String   @default("sent") // sent | failed | pending
+  createdAt DateTime @default(now())
+
+  @@index([siteId])
+  @@index([createdAt])
+}
+
+// ── Contact form submissions ───────────────────────────────────────────
+model ContactMessage {
+  id        String   @id @default(cuid())
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name      String
+  email     String
+  phone     String?
+  message   String
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([siteId])

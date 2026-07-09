@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please log in." }, { status: 401 });
   }
 
-  const limited = rateLimit(`marketing:user:${user.id}`, 10, RATE_WINDOW);
+  const limited = await rateLimit(`marketing:user:${user.id}`, 10, RATE_WINDOW);
   if (!limited.ok) {
     return NextResponse.json(
       { error: `Too many requests. Try again in ${limited.retryAfterSeconds} seconds.` },

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { validStorefront } from "@/lib/types";
+import { slugify } from "@/lib/slug";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       name: site.name,
       slug: site.slug,
       published: site.published,
+      publishedAt: site.publishedAt?.toISOString() ?? null,
       data,
     },
   });
@@ -53,7 +55,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if ("error" in result) return result.error;
 
   // Writes are cheap but not free (JSON validation + db) — bound them.
-  const limited = rateLimit(`sites-write:ip:${clientIp(req)}`, 120, 5 * 60 * 1000);
+  const limited = await rateLimit(`sites-write:ip:${clientIp(req)}`, 120, 5 * 60 * 1000);
   if (!limited.ok) {
     return NextResponse.json({ error: "Too many saves. Give it a few seconds." }, { status: 429 });
   }
@@ -83,4 +85,47 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   await prisma.site.delete({ where: { id } });
   return NextResponse.json({ ok: true });
+}
+
+// PATCH /api/sites/:id — update slug (and optionally publishAt).
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const result = await ownedSite(req, id);
+  if ("error" in result) return result.error;
+
+  let body: { slug?: string; publishAt?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = {};
+
+  if (body.slug !== undefined) {
+    const raw = body.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-+|-+$/g, "");
+    if (!raw) {
+      return NextResponse.json({ error: "Slug must contain at least one letter or number." }, { status: 400 });
+    }
+    if (raw.length > 100) {
+      return NextResponse.json({ error: "Slug must be 100 characters or fewer." }, { status: 400 });
+    }
+    const finalSlug = slugify(raw);
+    const existing = await prisma.site.findUnique({ where: { slug: finalSlug } });
+    if (existing && existing.id !== id) {
+      return NextResponse.json({ error: "That URL is already taken. Try another." }, { status: 409 });
+    }
+    updates.slug = finalSlug;
+  }
+
+  if (body.publishAt !== undefined) {
+    updates.publishAt = body.publishAt ? new Date(body.publishAt) : null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update." }, { status: 400 });
+  }
+
+  await prisma.site.update({ where: { id }, data: updates });
+  return NextResponse.json({ ok: true, ...(updates.slug ? { slug: updates.slug } : {}) });
 }

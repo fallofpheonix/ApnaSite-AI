@@ -66,6 +66,20 @@ const STOREFRONT_SCHEMA = {
       anyOf: [{ type: "string" }, { type: "null" }],
       description: "Email address if mentioned, otherwise null.",
     },
+    faq: {
+      type: "array",
+      description:
+        "3-5 frequently asked questions a customer might have about this business, with clear answers. Write them in the same language as the rest of the content.",
+      items: {
+        type: "object",
+        properties: {
+          question: { type: "string" },
+          answer: { type: "string" },
+        },
+        required: ["question", "answer"],
+        additionalProperties: false,
+      },
+    },
   },
   required: [
     "shopName",
@@ -78,6 +92,7 @@ const STOREFRONT_SCHEMA = {
     "phone",
     "whatsapp",
     "email",
+    "faq",
   ],
   additionalProperties: false,
 } as const;

@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
 
   // Public endpoint → rate-limited per email and per IP so it can't be used
   // to spam inboxes (or, in dev, flood the console).
-  const byEmail = rateLimit(`otp:email:${email}`, 3, 10 * 60 * 1000);
-  const byIp = rateLimit(`otp:ip:${clientIp(req)}`, 10, 10 * 60 * 1000);
+  const byEmail = await rateLimit(`otp:email:${email}`, 3, 10 * 60 * 1000);
+  const byIp = await rateLimit(`otp:ip:${clientIp(req)}`, 10, 10 * 60 * 1000);
   if (!byEmail.ok || !byIp.ok) {
     const retry = Math.max(byEmail.retryAfterSeconds, byIp.retryAfterSeconds);
     return NextResponse.json(

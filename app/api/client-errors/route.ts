@@ -20,7 +20,7 @@ function clamp(value: unknown): string {
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  const limited = rateLimit(`client-errors:ip:${ip}`, 10, 60 * 1000);
+  const limited = await rateLimit(`client-errors:ip:${ip}`, 10, 60 * 1000);
   if (!limited.ok) return new NextResponse(null, { status: 429 });
 
   const raw = await req.text();
