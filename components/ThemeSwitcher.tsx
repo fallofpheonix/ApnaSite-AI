@@ -84,9 +84,9 @@ function ThemeSwatch({
       </span>
       <span className="mt-1.5 flex items-center gap-1.5">
         <span className="flex gap-1">
-          <Dot color={theme.accent} />
-          <Dot color={theme.cardBg} />
-          <Dot color={theme.bgAlt} />
+          <Dot color={theme.accent} borderColor={theme.border} />
+          <Dot color={theme.cardBg} borderColor={theme.border} />
+          <Dot color={theme.bgAlt} borderColor={theme.border} />
         </span>
         <span className="truncate text-[10px] font-medium opacity-80">{label}</span>
       </span>
@@ -94,12 +94,12 @@ function ThemeSwatch({
   );
 }
 
-function Dot({ color }: { color: string }) {
+function Dot({ color, borderColor }: { color: string; borderColor: string }) {
   return (
     <span
       aria-hidden
-      className="h-3 w-3 rounded-full border border-black/10"
-      style={{ backgroundColor: color }}
+      className="h-3 w-3 rounded-full border"
+      style={{ backgroundColor: color, borderColor }}
     />
   );
 }

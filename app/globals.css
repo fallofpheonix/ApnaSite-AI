@@ -13,6 +13,18 @@
   --color-teal-deep: #123C39;
   --color-brick: #A8402B;
   --color-card: #FFFBF2;
+  --color-status-error-bg: #FCE9E4;
+  --color-status-error-text: #8F2F22;
+  --color-status-error-border: #E8B8AC;
+  --color-status-warning-bg: #F6DCA8;
+  --color-status-warning-text: #5B3A0F;
+  --color-status-warning-border: #E8B95F;
+  --color-status-info-bg: #DDEBFA;
+  --color-status-info-text: #16456F;
+  --color-status-info-border: #A7C8E8;
+  --color-status-success-bg: #DDECE5;
+  --color-status-success-text: #1E5C58;
+  --color-status-success-border: #A8CEC6;
 }
 
 .dark {
@@ -26,6 +38,18 @@
   --color-teal-deep: #80E5DF;
   --color-brick: #F4725C;
   --color-card: #252525;
+  --color-status-error-bg: #3A201C;
+  --color-status-error-text: #FFB3A5;
+  --color-status-error-border: #7A372E;
+  --color-status-warning-bg: #3A301F;
+  --color-status-warning-text: #F8D58B;
+  --color-status-warning-border: #6F5324;
+  --color-status-info-bg: #1B2C3D;
+  --color-status-info-text: #9FCEF5;
+  --color-status-info-border: #315B80;
+  --color-status-success-bg: #17312F;
+  --color-status-success-text: #80E5DF;
+  --color-status-success-border: #2C6F68;
 }
 
 html {
@@ -40,7 +64,7 @@ body {
    teal tint on the paper ground. Reads as texture from a normal viewing
    distance, not a busy pattern. */
 .bg-jali {
-  background-color: #fbf1de;
+  background-color: var(--color-paper);
   background-image: repeating-linear-gradient(
       45deg,
       rgba(30, 92, 88, 0.07) 0,
@@ -55,6 +79,47 @@ body {
       transparent 1px,
       transparent 28px
     );
+}
+
+.dark .bg-jali {
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(76, 196, 188, 0.08) 0,
+      rgba(76, 196, 188, 0.08) 1px,
+      transparent 1px,
+      transparent 28px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(76, 196, 188, 0.08) 0,
+      rgba(76, 196, 188, 0.08) 1px,
+      transparent 1px,
+      transparent 28px
+    );
+}
+
+.status-error {
+  border-color: var(--color-status-error-border);
+  background-color: var(--color-status-error-bg);
+  color: var(--color-status-error-text);
+}
+
+.status-warning {
+  border-color: var(--color-status-warning-border);
+  background-color: var(--color-status-warning-bg);
+  color: var(--color-status-warning-text);
+}
+
+.status-info {
+  border-color: var(--color-status-info-border);
+  background-color: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
+}
+
+.status-success {
+  border-color: var(--color-status-success-border);
+  background-color: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
 }
 
 /* Right-edge fade on horizontally scrollable strips — signals "more to the

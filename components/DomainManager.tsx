@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STATUS_BADGE_CLASS, STATUS_BUTTON_CLASS } from "@/lib/statusStyles";
 
 interface Domain {
   id: string;
@@ -113,7 +114,7 @@ export default function DomainManager({ siteId }: { siteId: string }) {
       <p className="text-sm font-medium text-ink">Custom Domains</p>
 
       {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className={`rounded-xl p-3 text-sm ${STATUS_BADGE_CLASS.error}`}>
           {error}
         </div>
       )}
@@ -150,8 +151,8 @@ export default function DomainManager({ siteId }: { siteId: string }) {
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                     domain.verified
-                      ? "bg-teal/15 text-teal"
-                      : "bg-yellow-100 text-yellow-700"
+                      ? STATUS_BADGE_CLASS.success
+                      : STATUS_BADGE_CLASS.warning
                   }`}
                 >
                   {domain.verified ? "Verified" : "Pending"}
@@ -170,7 +171,7 @@ export default function DomainManager({ siteId }: { siteId: string }) {
                 <button
                   type="button"
                   onClick={() => handleDelete(domain.id)}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${STATUS_BUTTON_CLASS.error}`}
                 >
                   Delete
                 </button>

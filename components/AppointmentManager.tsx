@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STATUS_BADGE_CLASS, STATUS_BUTTON_CLASS } from "@/lib/statusStyles";
 
 type Status = "pending" | "confirmed" | "cancelled";
 
@@ -13,9 +14,9 @@ interface Appointment {
 }
 
 const STATUS_STYLES: Record<Status, string> = {
-  pending: "bg-yellow-100 text-yellow-700",
-  confirmed: "bg-teal/15 text-teal",
-  cancelled: "bg-red-50 text-red-600",
+  pending: STATUS_BADGE_CLASS.warning,
+  confirmed: STATUS_BADGE_CLASS.success,
+  cancelled: STATUS_BADGE_CLASS.error,
 };
 
 const FILTERS: { value: "all" | Status; label: string }[] = [
@@ -148,7 +149,7 @@ export default function AppointmentManager({ siteId }: { siteId: string }) {
                   <button
                     type="button"
                     onClick={() => updateStatus(appt.id, "cancelled")}
-                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${STATUS_BUTTON_CLASS.error}`}
                   >
                     Cancel
                   </button>

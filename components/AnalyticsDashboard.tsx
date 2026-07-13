@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STATUS_BADGE_CLASS } from "@/lib/statusStyles";
 
 interface DailyViews {
   date: string;
@@ -58,7 +59,7 @@ export default function AnalyticsDashboard({ siteId }: { siteId: string }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-300 bg-red-50 p-5 text-red-700 shadow-sm">
+      <div className={`rounded-2xl p-5 shadow-sm ${STATUS_BADGE_CLASS.error}`}>
         {error}
       </div>
     );

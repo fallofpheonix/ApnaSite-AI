@@ -184,6 +184,7 @@ ${ogTags}
     --text: ${theme.text};
     --text-muted: ${theme.textMuted};
     --accent: ${theme.accent};
+    --accent-deep: ${theme.accentDeep};
     --accent-text: ${theme.accentText};
     --card-bg: ${theme.cardBg};
     --border: ${theme.border};
@@ -345,7 +346,7 @@ ${ogTags}
   .site-form .optional-label { font-size: 0.8rem; color: var(--text-muted); }
   .form-status { margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted); }
   .form-status.ok { color: var(--accent); }
-  .form-status.err { color: #b42318; }
+  .form-status.err { color: var(--accent-deep); }
   .add-to-cart-btn {
     display: inline-block;
     margin-top: 0.5rem;
@@ -381,7 +382,7 @@ ${ogTags}
     position: absolute;
     top: -4px;
     right: -4px;
-    background: #e74c3c;
+    background: var(--accent-deep);
     color: #fff;
     border-radius: 999px;
     width: 20px;
@@ -411,7 +412,7 @@ ${ogTags}
   .cart-dropdown h3 { margin: 0 0 0.75rem; font-size: 1rem; }
   .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
   .cart-item:last-child { border-bottom: none; }
-  .cart-item .remove-btn { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.85rem; }
+  .cart-item .remove-btn { background: none; border: none; color: var(--accent-deep); cursor: pointer; font-size: 0.85rem; }
   .cart-empty { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1rem 0; }
   .faq-list { margin-top: 1.5rem; }
   .faq-item {

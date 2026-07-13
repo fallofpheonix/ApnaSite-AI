@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STATUS_BADGE_CLASS, STATUS_BUTTON_CLASS } from "@/lib/statusStyles";
 
 interface Review {
   id: string;
@@ -128,7 +129,7 @@ export default function ReviewManager({ siteId }: { siteId: string }) {
                     <span className="text-sm font-medium text-ink">{review.author}</span>
                     <Stars count={review.rating} />
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      review.approved ? "bg-teal/15 text-teal" : "bg-yellow-100 text-yellow-700"
+                      review.approved ? STATUS_BADGE_CLASS.success : STATUS_BADGE_CLASS.warning
                     }`}>
                       {review.approved ? "Approved" : "Pending"}
                     </span>
@@ -152,7 +153,7 @@ export default function ReviewManager({ siteId }: { siteId: string }) {
                     <button
                       type="button"
                       onClick={() => toggleApproval(review.id, false)}
-                      className="rounded-lg bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-colors hover:bg-yellow-100"
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium ${STATUS_BUTTON_CLASS.warning}`}
                     >
                       Reject
                     </button>
@@ -160,7 +161,7 @@ export default function ReviewManager({ siteId }: { siteId: string }) {
                   <button
                     type="button"
                     onClick={() => handleDelete(review.id)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${STATUS_BUTTON_CLASS.error}`}
                   >
                     Delete
                   </button>

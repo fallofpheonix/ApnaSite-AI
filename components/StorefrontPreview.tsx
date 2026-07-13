@@ -159,6 +159,9 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
               <ProductPhoto
                 image={product.image ?? null}
                 borderColor={theme.border}
+                overlayBg={theme.text}
+                overlayText={theme.bg}
+                errorColor={theme.accentDeep}
                 onChange={(url) => updateProduct(i, { image: url })}
               />
               {!product.image && (
@@ -321,10 +324,16 @@ export default function StorefrontPreview({ data, onChange }: StorefrontPreviewP
 function ProductPhoto({
   image,
   borderColor,
+  overlayBg,
+  overlayText,
+  errorColor,
   onChange,
 }: {
   image: string | null;
   borderColor: string;
+  overlayBg: string;
+  overlayText: string;
+  errorColor: string;
   onChange: (url: string | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -375,7 +384,8 @@ function ProductPhoto({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={uploading}
-              className="min-h-[40px] rounded-lg bg-black/55 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+              className="min-h-[40px] rounded-lg px-3 py-2 text-xs font-semibold opacity-90 backdrop-blur-sm"
+              style={{ backgroundColor: overlayBg, color: overlayText }}
             >
               {uploading ? "Uploading..." : "Change"}
             </button>
@@ -383,7 +393,8 @@ function ProductPhoto({
               type="button"
               onClick={() => onChange(null)}
               aria-label="Remove photo"
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-black/55 text-xs font-semibold text-white backdrop-blur-sm"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-xs font-semibold opacity-90 backdrop-blur-sm"
+              style={{ backgroundColor: overlayBg, color: overlayText }}
             >
               &#10005;
             </button>
@@ -400,7 +411,11 @@ function ProductPhoto({
           <span aria-hidden>&#128247;</span> {uploading ? "Uploading..." : "Add photo"}
         </button>
       )}
-      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-1.5 text-xs" style={{ color: errorColor }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
