@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { validStorefront } from "@/lib/types";
+import { withBusinessProfile } from "@/lib/businessProfile";
 import { slugify } from "@/lib/slug";
 
 type Params = { params: Promise<{ id: string }> };
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       slug: site.slug,
       published: site.published,
       publishedAt: site.publishedAt?.toISOString() ?? null,
-      data,
+      data: withBusinessProfile(data),
     },
   });
 }
@@ -70,9 +71,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Missing or invalid storefront data." }, { status: 400 });
   }
 
+  const normalized = withBusinessProfile(data);
   await prisma.site.update({
     where: { id },
-    data: { name: data.shopName.trim(), data: JSON.stringify(data) },
+    data: { name: normalized.shopName.trim(), data: JSON.stringify(normalized) },
   });
   return NextResponse.json({ ok: true });
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { MAX_SITES_PER_USER, validStorefront } from "@/lib/types";
+import { withBusinessProfile } from "@/lib/businessProfile";
 
 // GET /api/sites — the logged-in user's sites (for the dashboard).
 export async function GET(req: NextRequest) {
@@ -49,11 +50,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing or invalid storefront data." }, { status: 400 });
   }
 
+  const normalized = withBusinessProfile(data);
   const site = await prisma.site.create({
     data: {
       userId: user.id,
-      name: data.shopName.trim(),
-      data: JSON.stringify(data),
+      name: normalized.shopName.trim(),
+      data: JSON.stringify(normalized),
     },
   });
   return NextResponse.json({ site: { id: site.id, name: site.name } }, { status: 201 });

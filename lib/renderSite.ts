@@ -2,6 +2,7 @@ import type { StorefrontData } from "./types";
 import { scriptLangFor } from "./types";
 import { themeForSite } from "./theme";
 import { GOOGLE_FONTS_HREF, staticFontStack } from "./fonts";
+import { firstPhoto, formattedAddress, photosByType, withBusinessProfile } from "./businessProfile";
 
 function esc(str: string | null | undefined): string {
   if (!str) return "";
@@ -24,10 +25,17 @@ function priceAmount(price: string | null | undefined): number | null {
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
-const UPLOAD_PATH_RE = /^\/uploads\/[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
+const UPLOAD_PATH_RE = /^\/uploads\/(?:thumb-)?[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
 
 function safeImageSrc(src: string | null | undefined): string | null {
-  return src && UPLOAD_PATH_RE.test(src) ? src : null;
+  if (!src) return null;
+  if (UPLOAD_PATH_RE.test(src)) return src;
+  try {
+    const url = new URL(src);
+    return url.protocol === "https:" ? src : null;
+  } catch {
+    return null;
+  }
 }
 
 // wa.me links require a country code. Most owners will type a bare 10-digit
@@ -79,6 +87,8 @@ export interface RenderOptions {
 }
 
 export function renderStorefrontHTML(data: StorefrontData, options: RenderOptions = {}): string {
+  data = withBusinessProfile(data);
+  const profile = data.businessProfile!;
   const theme = themeForSite(data);
   const fontDisplay = staticFontStack(theme.fontDisplayName, "display");
   const fontBody = staticFontStack(theme.fontBodyName, "body");
@@ -117,8 +127,11 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
   } catch {
     // Malformed pageUrl (odd proxy header) — skip absolute og tags, render on.
   }
-  const firstPhoto = data.products.map((p) => safeImageSrc(p.image)).find(Boolean);
-  const ogImage = firstPhoto && origin ? new URL(firstPhoto, origin).href : null;
+  const logo = firstPhoto(profile, "logo");
+  const cover = firstPhoto(profile, "cover");
+  const galleryPhotos = photosByType(profile, "gallery");
+  const firstImagePath = cover?.path || logo?.path || galleryPhotos[0]?.path || data.products.map((p) => safeImageSrc(p.image)).find(Boolean);
+  const ogImage = firstImagePath && origin ? new URL(firstImagePath, origin).href : null;
   const ogTags = [
     `<meta property="og:type" content="website" />`,
     `<meta property="og:title" content="${esc(data.shopName)}" />`,
@@ -142,25 +155,47 @@ export function renderStorefrontHTML(data: StorefrontData, options: RenderOption
     name: data.shopName,
   };
   if (description) localBusiness.description = description;
-  if (data.address) localBusiness.address = data.address;
-  if (data.phone) localBusiness.telephone = data.phone;
-  if (data.email) localBusiness.email = data.email;
+  const addressText = formattedAddress(profile.address, data.address);
+  if (addressText) localBusiness.address = addressText;
+  if (profile.contact.phone) localBusiness.telephone = profile.contact.phone;
+  if (profile.contact.email) localBusiness.email = profile.contact.email;
   if (data.hours) localBusiness.openingHours = data.hours;
   if (canonicalUrl) localBusiness.url = canonicalUrl;
   if (ogImage) localBusiness.image = ogImage;
+  if (profile.location.latitude != null && profile.location.longitude != null) {
+    localBusiness.geo = {
+      "@type": "GeoCoordinates",
+      latitude: profile.location.latitude,
+      longitude: profile.location.longitude,
+    };
+  }
   const jsonLd = JSON.stringify(localBusiness).replace(/</g, "\\u003c");
 
-  const whatsappLink = data.whatsapp ? waLink(data.whatsapp) : null;
-  const phoneLink = data.phone ? telLink(data.phone) : null;
-  const emailLink = data.email ? mailLink(data.email) : null;
-  const mapSrc = data.address
-    ? `https://maps.google.com/maps?q=${encodeURIComponent(data.address)}&output=embed`
+  const whatsappLink = profile.contact.whatsapp ? waLink(profile.contact.whatsapp) : null;
+  const phoneLink = profile.contact.phone ? telLink(profile.contact.phone) : null;
+  const emailLink = profile.contact.email ? mailLink(profile.contact.email) : null;
+  const coords =
+    profile.location.latitude != null && profile.location.longitude != null
+      ? `${profile.location.latitude},${profile.location.longitude}`
+      : null;
+  const mapQuery = coords || addressText;
+  const mapSrc = mapQuery
+    ? profile.location.mapProvider === "osm" && coords
+      ? `https://www.openstreetmap.org/export/embed.html?marker=${encodeURIComponent(coords)}&mlat=${profile.location.latitude}&mlon=${profile.location.longitude}`
+      : `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
+    : null;
+  const mapsUrl = mapQuery
+    ? profile.location.mapProvider === "osm" && coords
+      ? `https://www.openstreetmap.org/?mlat=${profile.location.latitude}&mlon=${profile.location.longitude}#map=18/${profile.location.latitude}/${profile.location.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
     : null;
   const contactButtons = [
     whatsappLink
       ? `<a class="btn btn-primary" href="${esc(whatsappLink)}" target="_blank" rel="noopener">Message on WhatsApp</a>`
       : "",
-    phoneLink ? `<a class="btn btn-outline" href="${esc(phoneLink)}">Call ${esc(data.phone)}</a>` : "",
+    phoneLink ? `<a class="btn btn-outline" href="${esc(phoneLink)}">Call ${esc(profile.contact.phone)}</a>` : "",
+    emailLink ? `<a class="btn btn-outline" href="${esc(emailLink)}">Email</a>` : "",
+    mapsUrl ? `<a class="btn btn-outline" href="${esc(mapsUrl)}" target="_blank" rel="noopener">Directions</a>` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -204,7 +239,9 @@ ${ogTags}
     padding: 4rem 0 3rem;
     text-align: center;
     border-bottom: 1px solid var(--border);
+    ${cover ? `background-image: linear-gradient(rgba(0,0,0,.28), rgba(0,0,0,.28)), url("${esc(safeImageSrc(cover.path) ?? "")}"); background-size: cover; background-position: center; color: white;` : ""}
   }
+  .logo-photo { width: 92px; height: 92px; object-fit: cover; border-radius: 1rem; border: 3px solid rgba(255,255,255,.8); margin: 0 auto 1rem; display: block; }
   .badge {
     display: inline-block;
     background: var(--accent);
@@ -293,6 +330,21 @@ ${ogTags}
     color: var(--text-muted);
     font-size: 0.9rem;
   }
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .gallery-grid img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+  }
+  .contact-actions { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .5rem; }
+  .contact-actions button { cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); }
   footer {
     text-align: center;
     padding: 2rem 0;
@@ -460,6 +512,7 @@ ${ogTags}
   <header class="hero">
     <div class="wrap">
       <span class="badge">${esc(data.category)}</span>
+      ${logo ? `<img class="logo-photo" src="${esc(safeImageSrc(logo.path) ?? "")}" alt="${esc(logo.altText || data.shopName)}" />` : ""}
       <h1>${esc(data.shopName)}</h1>
       <p class="tagline">${esc(data.tagline)}</p>
       ${contactButtons}
@@ -493,15 +546,34 @@ ${ogTags}
       : ""
   }
 
+  ${
+    galleryPhotos.length
+      ? `<section class="gallery alt">
+    <div class="wrap">
+      <h2>Photos</h2>
+      <div class="gallery-grid">
+        ${galleryPhotos.map((photo) => `<img src="${esc(safeImageSrc(photo.path) ?? "")}" alt="${esc(photo.altText)}" loading="lazy" />`).join("\n")}
+      </div>
+    </div>
+  </section>`
+      : ""
+  }
+
   <section class="alt contact">
     <div class="wrap">
       <h2>Visit / Contact Us</h2>
       <div class="contact-grid">
         <div class="contact-info">
-          ${data.address ? `<p>&#128205; ${esc(data.address)}</p>` : ""}
-          ${phoneLink ? `<p>&#128222; <a href="${esc(phoneLink)}">${esc(data.phone)}</a></p>` : ""}
-          ${whatsappLink ? `<p>&#128172; <a href="${esc(whatsappLink)}" target="_blank" rel="noopener">WhatsApp: ${esc(data.whatsapp)}</a></p>` : ""}
-          ${emailLink ? `<p>&#9993; <a href="${esc(emailLink)}">${esc(data.email)}</a></p>` : ""}
+          ${addressText ? `<p id="business-address">&#128205; ${esc(addressText)}</p>` : ""}
+          ${phoneLink ? `<p>&#128222; <a href="${esc(phoneLink)}">${esc(profile.contact.phone)}</a></p>` : ""}
+          ${whatsappLink ? `<p>&#128172; <a href="${esc(whatsappLink)}" target="_blank" rel="noopener">WhatsApp: ${esc(profile.contact.whatsapp)}</a></p>` : ""}
+          ${emailLink ? `<p>&#9993; <a href="${esc(emailLink)}">${esc(profile.contact.email)}</a></p>` : ""}
+          ${profile.contact.website ? `<p>&#127760; <a href="${esc(profile.contact.website)}" target="_blank" rel="noopener">${esc(profile.contact.website)}</a></p>` : ""}
+          <div class="contact-actions">
+            ${mapsUrl ? `<a class="btn btn-outline" href="${esc(mapsUrl)}" target="_blank" rel="noopener">Open Maps</a>` : ""}
+            ${addressText ? `<button class="btn btn-outline" type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(${jsString(addressText)})">Copy Address</button>` : ""}
+            <button class="btn btn-outline" type="button" onclick="navigator.share ? navigator.share({title:${jsString(data.shopName)},url:location.href}) : navigator.clipboard && navigator.clipboard.writeText(location.href)">Share Business</button>
+          </div>
         </div>
         ${
           mapSrc

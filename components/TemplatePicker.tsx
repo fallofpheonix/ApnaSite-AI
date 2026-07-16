@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TEMPLATES, type SiteTemplate } from "@/lib/templates";
+import { TEMPLATES } from "@/lib/templates";
 import type { StorefrontData } from "@/lib/types";
 
 interface TemplatePickerProps {

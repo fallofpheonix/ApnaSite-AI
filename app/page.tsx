@@ -11,6 +11,7 @@ import AppFooter from "@/components/AppFooter";
 import TemplatePicker from "@/components/TemplatePicker";
 import { useAuthUser } from "@/components/useAuthUser";
 import { ensureProductIds, validStorefront, type Language, type StorefrontData } from "@/lib/types";
+import { withBusinessProfile } from "@/lib/businessProfile";
 import ParticleBackground from "@/components/ParticleBackground";
 
 type Stage = "capture" | "loading" | "preview" | "published";
@@ -144,7 +145,7 @@ export default function Home() {
           return;
         }
         setSiteId(json.site.id);
-        const d = ensureProductIds(json.site.data);
+        const d = withBusinessProfile(ensureProductIds(json.site.data));
         setData(d);
         pushHistory(d);
         setStage("preview");
@@ -154,19 +155,21 @@ export default function Home() {
 
     if (templateParam) {
       window.history.replaceState(null, "", "/");
-      try {
-        const decoded = JSON.parse(decodeURIComponent(atob(templateParam)));
-        if (validStorefront(decoded)) {
-          const d = ensureProductIds(decoded);
-          setData(d);
-          pushHistory(d);
-          setStage("preview");
-        } else {
-          setError("Invalid template data.");
+      queueMicrotask(() => {
+        try {
+          const decoded = JSON.parse(decodeURIComponent(atob(templateParam)));
+          if (validStorefront(decoded)) {
+            const d = withBusinessProfile(ensureProductIds(decoded));
+            setData(d);
+            pushHistory(d);
+            setStage("preview");
+          } else {
+            setError("Invalid template data.");
+          }
+        } catch {
+          setError("Could not load the selected template.");
         }
-      } catch {
-        setError("Could not load the selected template.");
-      }
+      });
       return;
     }
 
@@ -178,7 +181,7 @@ export default function Home() {
           sampleMode?: boolean;
         } | null;
         if (recovered && validStorefront(recovered.data)) {
-          const d = ensureProductIds(recovered.data);
+          const d = withBusinessProfile(ensureProductIds(recovered.data));
           setData(d);
           pushHistory(d);
           setSiteId(typeof recovered.siteId === "string" ? recovered.siteId : null);
@@ -189,7 +192,7 @@ export default function Home() {
         localStorage.removeItem(RECOVERY_KEY);
       }
     });
-  }, []);
+  }, [pushHistory]);
 
   // Crash/network/navigation recovery for unsaved and in-progress edits.
   useEffect(() => {
@@ -256,7 +259,7 @@ export default function Home() {
         setGenerationJobId(null);
         try {
           const payload = JSON.parse(e.data);
-          const d = ensureProductIds(payload.data);
+          const d = withBusinessProfile(ensureProductIds(payload.data));
           setData(d);
           pushHistory(d);
           setSampleMode(Boolean(payload.sampleMode));
@@ -315,16 +318,17 @@ export default function Home() {
    * id so publish can chain off an unsaved site in one click. */
   const saveSite = async (): Promise<string | null> => {
     if (!data) return null;
+    const normalized = withBusinessProfile(data);
     const res = siteId
       ? await fetch(`/api/sites/${siteId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data }),
+          body: JSON.stringify({ data: normalized }),
         })
       : await fetch("/api/sites", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data }),
+          body: JSON.stringify({ data: normalized }),
         });
     if (res.status === 401) {
       window.location.href = "/login?next=/";

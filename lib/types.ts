@@ -39,6 +39,74 @@ export interface Product {
   sku?: string | null;
 }
 
+export type BusinessPhotoType = "logo" | "cover" | "gallery" | "product" | "team";
+export type MapProvider = "google" | "osm";
+
+export interface BusinessPhoto {
+  id: string;
+  filename: string;
+  path: string;
+  thumbnailPath: string;
+  altText: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  type: BusinessPhotoType;
+  sortOrder: number;
+}
+
+export interface BusinessContact {
+  businessName: string;
+  ownerName: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  website: string | null;
+  alternatePhone: string | null;
+  supportEmail: string | null;
+}
+
+export interface BusinessAddress {
+  shopNumber: string | null;
+  building: string | null;
+  street: string | null;
+  landmark: string | null;
+  area: string | null;
+  city: string | null;
+  district: string | null;
+  state: string | null;
+  country: string | null;
+  postalCode: string | null;
+}
+
+export interface BusinessLocation {
+  latitude: number | null;
+  longitude: number | null;
+  accuracy: number | null;
+  source: "manual" | "gps" | "maps-url" | "address-search" | null;
+  mapProvider: MapProvider;
+}
+
+export interface DayHours {
+  day: string;
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+export interface BusinessHours {
+  weekly: DayHours[];
+  specialHours: Array<{ date: string; open: string | null; close: string | null; closed: boolean; note: string | null }>;
+  temporaryClosure: string | null;
+}
+
+export interface BusinessProfile {
+  photos: BusinessPhoto[];
+  contact: BusinessContact;
+  address: BusinessAddress;
+  location: BusinessLocation;
+  hours: BusinessHours;
+}
+
 export interface StorefrontData {
   shopName: string;
   tagline: string;
@@ -54,6 +122,9 @@ export interface StorefrontData {
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
+  /** Canonical business profile consumed by published channels. Legacy flat
+   * contact fields remain mirrored for older generated/saved site data. */
+  businessProfile?: BusinessProfile;
   language: Language;
   /** Frequently asked questions. Optional. */
   faq?: Array<{ question: string; answer: string }>;
@@ -78,8 +149,11 @@ export function ensureProductIds(data: StorefrontData): StorefrontData {
 const MAX_TEXT = 2000;
 const MAX_SHORT_TEXT = 200;
 const MAX_PRODUCTS = 40;
-const UPLOAD_PATH_RE = /^\/uploads\/[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
+const MAX_PHOTOS = 80;
+const UPLOAD_PATH_RE = /^\/uploads\/(?:thumb-)?[0-9]+-[a-f0-9]+\.(jpg|png|webp)$/;
 const VALID_LANGUAGES = new Set<Language>(["en", "hi", "hinglish"]);
+const VALID_PHOTO_TYPES = new Set<BusinessPhotoType>(["logo", "cover", "gallery", "product", "team"]);
+const VALID_MAP_PROVIDERS = new Set<MapProvider>(["google", "osm"]);
 
 function isString(value: unknown, max = MAX_TEXT): value is string {
   return typeof value === "string" && value.length <= max;
@@ -91,6 +165,115 @@ function isNullableString(value: unknown, max = MAX_TEXT): value is string | nul
 
 function isValidImage(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || (typeof value === "string" && UPLOAD_PATH_RE.test(value));
+}
+
+function isValidPhone(value: unknown): value is string | null {
+  if (value === null) return true;
+  if (!isString(value, MAX_SHORT_TEXT)) return false;
+  const digits = value.replace(/[^0-9]/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
+
+function isValidEmail(value: unknown): value is string | null {
+  if (value === null) return true;
+  return isString(value, MAX_SHORT_TEXT) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function isValidUrl(value: unknown): value is string | null {
+  if (value === null) return true;
+  if (!isString(value, MAX_SHORT_TEXT)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isNumberOrNull(value: unknown, min: number, max: number): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value) && value >= min && value <= max);
+}
+
+function validBusinessProfile(value: unknown): value is BusinessProfile {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object") return false;
+  const profile = value as BusinessProfile;
+  const contact = profile.contact;
+  const address = profile.address;
+  const location = profile.location;
+  const hours = profile.hours;
+  return (
+    Array.isArray(profile.photos) &&
+    profile.photos.length <= MAX_PHOTOS &&
+    profile.photos.every((photo) =>
+      photo &&
+      typeof photo === "object" &&
+      isString(photo.id, 80) &&
+      isString(photo.filename, MAX_SHORT_TEXT) &&
+      isValidImage(photo.path) &&
+      isValidImage(photo.thumbnailPath) &&
+      isString(photo.altText, MAX_SHORT_TEXT) &&
+      isString(photo.uploadedBy, MAX_SHORT_TEXT) &&
+      isString(photo.uploadedAt, MAX_SHORT_TEXT) &&
+      VALID_PHOTO_TYPES.has(photo.type) &&
+      typeof photo.sortOrder === "number" &&
+      Number.isFinite(photo.sortOrder)
+    ) &&
+    contact &&
+    typeof contact === "object" &&
+    isString(contact.businessName, MAX_SHORT_TEXT) &&
+    contact.businessName.trim().length > 0 &&
+    isNullableString(contact.ownerName, MAX_SHORT_TEXT) &&
+    isValidPhone(contact.phone) &&
+    isValidPhone(contact.whatsapp) &&
+    isValidEmail(contact.email) &&
+    isValidUrl(contact.website) &&
+    isValidPhone(contact.alternatePhone) &&
+    isValidEmail(contact.supportEmail) &&
+    address &&
+    typeof address === "object" &&
+    isNullableString(address.shopNumber, MAX_SHORT_TEXT) &&
+    isNullableString(address.building, MAX_SHORT_TEXT) &&
+    isNullableString(address.street, MAX_SHORT_TEXT) &&
+    isNullableString(address.landmark, MAX_SHORT_TEXT) &&
+    isNullableString(address.area, MAX_SHORT_TEXT) &&
+    isNullableString(address.city, MAX_SHORT_TEXT) &&
+    isNullableString(address.district, MAX_SHORT_TEXT) &&
+    isNullableString(address.state, MAX_SHORT_TEXT) &&
+    isNullableString(address.country, MAX_SHORT_TEXT) &&
+    isNullableString(address.postalCode, MAX_SHORT_TEXT) &&
+    location &&
+    typeof location === "object" &&
+    isNumberOrNull(location.latitude, -90, 90) &&
+    isNumberOrNull(location.longitude, -180, 180) &&
+    isNumberOrNull(location.accuracy, 0, 100000) &&
+    (location.source === null || ["manual", "gps", "maps-url", "address-search"].includes(location.source)) &&
+    VALID_MAP_PROVIDERS.has(location.mapProvider) &&
+    hours &&
+    typeof hours === "object" &&
+    Array.isArray(hours.weekly) &&
+    hours.weekly.length === 7 &&
+    hours.weekly.every((slot) =>
+      slot &&
+      typeof slot === "object" &&
+      isString(slot.day, 20) &&
+      isString(slot.open, 20) &&
+      isString(slot.close, 20) &&
+      typeof slot.closed === "boolean"
+    ) &&
+    Array.isArray(hours.specialHours) &&
+    hours.specialHours.length <= 40 &&
+    hours.specialHours.every((slot) =>
+      slot &&
+      typeof slot === "object" &&
+      isString(slot.date, 20) &&
+      isNullableString(slot.open, 20) &&
+      isNullableString(slot.close, 20) &&
+      typeof slot.closed === "boolean" &&
+      isNullableString(slot.note, MAX_SHORT_TEXT)
+    ) &&
+    isNullableString(hours.temporaryClosure, MAX_SHORT_TEXT)
+  );
 }
 
 /** Strict shape check before trusting client-sent site data. */
@@ -105,9 +288,10 @@ export function validStorefront(data: unknown): data is StorefrontData {
     isString(d.aboutText) &&
     isString(d.hours, MAX_SHORT_TEXT) &&
     isNullableString(d.address) &&
-    isNullableString(d.phone, MAX_SHORT_TEXT) &&
-    isNullableString(d.whatsapp, MAX_SHORT_TEXT) &&
-    isNullableString(d.email, MAX_SHORT_TEXT) &&
+    isValidPhone(d.phone) &&
+    isValidPhone(d.whatsapp) &&
+    isValidEmail(d.email) &&
+    validBusinessProfile(d.businessProfile) &&
     VALID_LANGUAGES.has(d.language) &&
     (d.themeOverride === undefined || d.themeOverride === null || isString(d.themeOverride, MAX_SHORT_TEXT)) &&
     Array.isArray(d.products) &&

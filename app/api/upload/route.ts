@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import sharp from "sharp";
 import { getSessionUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import {
@@ -20,6 +21,7 @@ import {
 // app/uploads/[name]/route.ts.
 
 const MAX_BYTES = 4 * 1024 * 1024; // 4 MB — plenty for a phone photo after browser downscaling
+const THUMB_SIZE = 480;
 
 // Magic-byte signatures so a renamed .exe can't sneak in as "image/png".
 function looksLikeImage(buf: Buffer, mime: string): boolean {
@@ -79,20 +81,60 @@ export async function POST(req: NextRequest) {
 
   // Random server-chosen name: never trust the client filename.
   const name = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+  const thumbName = `thumb-${name}`;
+  const type = typeof form.get("type") === "string" ? String(form.get("type")) : "product";
+  const altText = typeof form.get("altText") === "string" ? String(form.get("altText")).slice(0, 200) : "";
+  const validType = ["logo", "cover", "gallery", "product", "team"].includes(type) ? type : "product";
 
   try {
+    const thumb = await sharp(buf, { failOn: "error" })
+      .rotate()
+      .resize({ width: THUMB_SIZE, height: THUMB_SIZE, fit: "inside", withoutEnlargement: true })
+      .toFormat(ext === "jpg" ? "jpeg" : ext)
+      .toBuffer();
+
     if (isCloudStorage()) {
       // Cloud storage path (S3 / Cloudflare R2)
       const key = `uploads/${name}`;
+      const thumbKey = `uploads/${thumbName}`;
       await s3Upload(key, buf, file.type);
+      await s3Upload(thumbKey, thumb, file.type);
       const url = await s3FileUrl(key);
-      return NextResponse.json({ url }, { status: 201 });
+      const thumbUrl = await s3FileUrl(thumbKey);
+      return NextResponse.json({
+        url,
+        photo: {
+          id: randomBytes(8).toString("hex"),
+          filename: name,
+          path: url,
+          thumbnailPath: thumbUrl,
+          altText,
+          uploadedBy: user.id,
+          uploadedAt: new Date().toISOString(),
+          type: validType,
+          sortOrder: 0,
+        },
+      }, { status: 201 });
     }
 
     // Local disk fallback
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(path.join(UPLOADS_DIR, name), buf);
-    return NextResponse.json({ url: `/uploads/${name}` }, { status: 201 });
+    await writeFile(path.join(UPLOADS_DIR, thumbName), thumb);
+    return NextResponse.json({
+      url: `/uploads/${name}`,
+      photo: {
+        id: randomBytes(8).toString("hex"),
+        filename: name,
+        path: `/uploads/${name}`,
+        thumbnailPath: `/uploads/${thumbName}`,
+        altText,
+        uploadedBy: user.id,
+        uploadedAt: new Date().toISOString(),
+        type: validType,
+        sortOrder: 0,
+      },
+    }, { status: 201 });
   } catch (err) {
     console.error("Photo upload failed:", err);
     return NextResponse.json(
